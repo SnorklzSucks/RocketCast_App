@@ -1168,10 +1168,12 @@ p:last-child{margin-bottom:0}
   // Root-level scripts are denied by shape, not by name. The enumerated list
   // this used to be stopped covering new files the moment one was added --
   // server-plus.js, bracket-engine.js and startgg-import.js were all being
-  // served in full. renderer.js is the one root script the control panel
-  // actually loads, so it is the only exception.
+  // served in full. The exceptions are the two root scripts the control panel
+  // itself loads in the browser; everything else at the root is server-side
+  // and has no business being downloadable.
+  const CLIENT_ROOT_SCRIPTS = [ "/renderer.js", "/panel-plus.js" ];
   const requestPath = path.posix.normalize(decodeURIComponent(req.path || ""));
-  if (/^\/[^/]+\.js$/i.test(requestPath) && "/renderer.js" !== requestPath) return void res.status(404).end();
+  if (/^\/[^/]+\.js$/i.test(requestPath) && !CLIENT_ROOT_SCRIPTS.includes(requestPath)) return void res.status(404).end();
   if ([ "/package.json", "/package-lock.json", "/rocket-cast-web.env", "/bug tracker.txt" ].includes(requestPath) ||
     [ "/node_modules/", "/scripts/", "/docs/", "/dist/" ].some(prefix => requestPath.startsWith(prefix)) ||
     /\.env(\.|$)/i.test(requestPath) || /\.(env|pem|key|p12|pfx)$/i.test(requestPath)) return void res.status(404).end();
