@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Rocket Cast - Free Rocket League Broadcast Overlay App</title>
+<meta name="description" content="Rocket Cast is a free Windows app for casting Rocket League: live match tracking, a built-in broadcast overlay, custom keybinds, and co-cast tools." />
+<link rel="canonical" href="https://rocketcast.net/" />
+<link rel="icon" href="/build/RC.ico" type="image/x-icon" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Rocket Cast",
+  "url": "https://rocketcast.net/",
+  "applicationCategory": "MultimediaApplication",
+  "operatingSystem": "Windows",
+  "description": "Rocket Cast is a free Windows app for casting Rocket League: live match tracking, a built-in broadcast overlay, custom keybinds, and co-cast tools.",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "downloadUrl": "https://github.com/SnorklzSucks/RocketCast_App/releases/latest/download/Rocket.Cast.Setup.exe",
+  "author": {
+    "@type": "Person",
+    "name": "Daniel Kindt"
+  }
+}
+</script>
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Rocket Cast" />
+<meta property="og:url" content="https://rocketcast.net/" />
+<meta property="og:title" content="Rocket Cast" />
+<meta property="og:description" content="Cast Rocket League with a live overlay builder, automatic goal clips, and co-cast tools. Free for Windows." />
+<meta property="og:image" content="https://rocketcast.net/build/Screenshot%202026-06-07%20105950.png" />
+<meta property="og:image:width" content="1968" />
+<meta property="og:image:height" content="1108" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Rocket Cast" />
+<meta name="twitter:description" content="Cast Rocket League with a live overlay builder, automatic goal clips, and co-cast tools. Free for Windows." />
+<meta name="twitter:image" content="https://rocketcast.net/build/Screenshot%202026-06-07%20105950.png" />
+<style>
+/* Same font + color tokens as the app itself (index.html) -- this page is
+   meant to look like it's the same product, not a separate marketing site. */
+@font-face{
+  font-family:Bourgeois;
+  src:url('fonts/Bourgeois-Bold.otf') format('opentype');
+  font-weight:700;
+  font-style:normal;
+  font-display:swap
+}
+@font-face{
+  font-family:Bourgeois;
+  src:url('fonts/Bourgeois-Bold-Italic.ttf') format('truetype');
+  font-weight:700;
+  font-style:italic;
+  font-display:swap
+}
+:root{
+  --font-brand:'Bourgeois','Segoe UI Variable','Trebuchet MS',Verdana,Tahoma,sans-serif;
+  --bg:#0e1520;
+  --text:#eaf1f8;
+  --panel-bg:#141d2b;
+  --panel-border:#26374f;
+  --muted:#7f93ab;
+  --panel-alt:#101724;
+  --panel-hover:#1a2436;
+  --btn-primary:#2975a4;
+  --btn-secondary:#3d5468;
+  --gold:#c9a84c;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:"Segoe UI Variable","Trebuchet MS",Verdana,Tahoma,sans-serif;
+  line-height:1.5;
+  min-height:100vh
+}
+a{color:inherit}
+.page{max-width:1080px;margin:0 auto;padding:28px 20px 60px}
+
+/* ---- container -- identical treatment to the app's own .container ---- */
+.container{
+  background:var(--panel-bg);
+  border:1px solid var(--panel-border);
+  border-radius:18px;
+  padding:22px;
+  margin-bottom:18px
+}
+
+/* ---- header, same brand-lockup as the app sidebar ---- */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand-lockup{display:flex;align-items:center;gap:14px}
+.brand-mark{display:block;width:44px;height:44px;border-radius:12px;object-fit:cover;background:var(--panel-alt)}
+.brand-lockup h1{margin:0;font-family:var(--font-brand);font-size:clamp(26px,3.4vw,34px);line-height:1;letter-spacing:-.02em;font-weight:700;color:var(--text)}
+.brand-plus-badge{display:inline-block;margin-left:2px;font-size:.55em;font-weight:800;vertical-align:super;color:#49a5df}
+.topbar-actions{display:flex;gap:10px;flex-wrap:wrap}
+
+/* ---- buttons, identical to .premium-primary-btn / .premium-secondary-btn ---- */
+.btn{border:none;border-radius:4px;padding:11px 18px;color:#fff;font-size:14px;cursor:pointer;font-weight:700;text-align:center;display:inline-flex;justify-content:center;align-items:center;gap:8px;text-decoration:none;position:relative}
+.btn-primary{background:var(--btn-primary)}
+.btn-secondary{background:var(--btn-secondary)}
+.btn-primary:hover,.btn-secondary:hover{filter:brightness(1.1)}
+.btn:disabled,.btn.is-loading{cursor:default;filter:none;opacity:.85}
+
+/* buffer wheel shown on the download buttons while the download kicks off */
+.btn-spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:btn-spin .7s linear infinite;flex-shrink:0}
+@keyframes btn-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){ .btn-spinner{animation:none} }
+
+/* ---- hero ---- */
+.hero{display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:center;margin-top:8px}
+@media (max-width:760px){ .hero{grid-template-columns:1fr} }
+.hero-heading{font-family:var(--font-brand);font-weight:700;letter-spacing:-.01em;margin:0}
+/* Bourgeois only ships one weight (700) -- there's no heavier real weight
+   to switch "you" to, so this fakes an extra-bold look by thickening the
+   strokes instead: -webkit-text-stroke for Chromium/Electron (where this
+   is actually seen most), text-shadow stacking as a fallback elsewhere. */
+.reveal-word-faux-bold{color:#49a5df;-webkit-text-stroke:1.5px currentColor;text-shadow:0.6px 0 currentColor,-0.6px 0 currentColor,0 0.6px currentColor,0 -0.6px currentColor}
+.reveal-word-blue{color:#49a5df}
+/* "to customize" is a longer line than the hero's single short words --
+   at the full heading size it wraps inside this narrower panel column.
+   0.55em (rather than the full size "Don't pay" uses) is enough margin
+   to actually fit on one line, verified against the real rendered width,
+   not guessed. */
+.reveal-word-smaller{font-size:0.55em}
+.reveal-word-smaller-mild{font-size:0.75em}
+.download-counter{color:var(--muted);font-size:12.5px;margin:16px 0 0}
+.download-counter b{color:var(--text)}
+/* Mobile: a normal single heading, no stacking, no animation. */
+.hero-heading{font-size:clamp(32px,7vw,42px);line-height:1.1}
+.hero-heading .reveal-word{display:inline}
+.hero-heading .reveal-word:not(:last-child)::after{content:' '}
+/* Desktop/laptop: one word per line, big, revealing top to bottom. */
+@media (min-width:761px){
+  .hero-heading{font-size:clamp(72px,10vw,136px);line-height:.94}
+  .hero-heading .reveal-word{display:block;opacity:0;transform:translateY(18px);animation:reveal-word .55s ease forwards}
+  .hero-heading .reveal-word:nth-child(1){animation-delay:.05s}
+  .hero-heading .reveal-word:nth-child(2){animation-delay:.22s}
+  .hero-heading .reveal-word:nth-child(3){animation-delay:.39s}
+  .hero-heading .reveal-word:nth-child(4){animation-delay:.56s}
+  .hero-heading .reveal-word::after{content:none}
+}
+@keyframes reveal-word{to{opacity:1;transform:translateY(0)}}
+@media (prefers-reduced-motion: reduce){
+  .hero-heading .reveal-word{animation:none;opacity:1;transform:none}
+}
+/* ---- tweet embed, with a skeleton shown until it actually renders ---- */
+.tweet-embed{position:relative;background:var(--panel-alt);border:1px solid var(--panel-border);border-radius:10px;padding:10px;min-height:260px}
+.embed-skeleton{position:absolute;inset:10px;display:flex;flex-direction:column;gap:10px;transition:opacity .25s ease}
+.embed-skeleton.is-hidden{opacity:0;pointer-events:none}
+.skel-bar{border-radius:5px;background:linear-gradient(90deg,var(--panel-hover) 25%,color-mix(in srgb,var(--panel-hover) 60%,var(--panel-bg) 40%) 37%,var(--panel-hover) 63%);background-size:400% 100%;animation:skeleton-shimmer 1.4s ease-in-out infinite}
+.skel-bar.h-sm{height:12px;width:40%}
+.skel-bar.h-lg{height:14px;width:85%}
+.skel-bar.h-media{flex:1;border-radius:8px}
+@keyframes skeleton-shimmer{0%{background-position:100% 50%}100%{background-position:0 50%}}
+@media (prefers-reduced-motion: reduce){ .skel-bar{animation:none;opacity:.55} }
+
+/* ---- What's Included: picture left, plain free-tier list right ---- */
+.included-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:center}
+@media (max-width:760px){ .included-grid{grid-template-columns:1fr} }
+.included-shot-wrap{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--panel-border);aspect-ratio:16/9}
+.included-shot-wrap .skel-bar.h-media{position:absolute;inset:0;border-radius:0}
+.included-shot{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .35s ease;position:relative}
+.included-shot.is-loaded{opacity:1}
+.section-title{font-family:var(--font-brand);font-size:20px;margin:0 0 12px}
+.plain-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.plain-list li{padding:11px 14px;border-radius:8px;background:var(--panel-alt);font-size:14.5px;font-weight:700}
+.promo-text{font-size:15px;color:var(--text);line-height:1.65;margin:0}
+.promo-code{display:inline-block;background:var(--panel-alt);border:1px solid var(--gold);border-radius:6px;padding:2px 9px;font-weight:800;letter-spacing:.03em;color:var(--gold)}
+
+/* ---- Free / Rocket Cast + -- two bare panels, no titles/descriptions above them ---- */
+.plans-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:700px){ .plans-grid{grid-template-columns:1fr} }
+.plan-panel{background:var(--panel-bg);border:1px solid var(--panel-border);border-radius:10px;padding:18px}
+.plan-panel.is-plus{border-color:color-mix(in srgb,var(--gold) 55%,var(--panel-border))}
+.plan-panel h3{margin:0 0 12px;font-family:var(--font-brand);font-size:19px}
+.plan-panel h3 .gold{color:var(--gold)}
+.plan-panel ul{margin:0;padding-left:18px;line-height:1.9;font-size:13.5px}
+
+/* ---- footer, identical to .app-footer-bar ---- */
+.app-footer-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:6px;color:var(--muted);font-size:12px}
+.app-footer-bar a{color:var(--muted);text-decoration:underline;text-underline-offset:2px}
+.app-footer-bar a:hover{color:var(--text)}
+
+/* ---- account block inside the Rocket Cast + panel ---- */
+.account-block{margin-top:16px;padding-top:16px;border-top:1px solid var(--panel-border)}
+.account-signed-out{display:flex;gap:10px;flex-wrap:wrap}
+.account-signed-in{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.account-signed-in b{color:var(--text)}
+.account-badge{font-size:10px;font-weight:800;letter-spacing:.04em;color:var(--gold);border:1px solid color-mix(in srgb,var(--gold) 50%,transparent);background:color-mix(in srgb,var(--gold) 12%,transparent);padding:2px 7px;border-radius:99px;margin-left:8px}
+.btn-link{background:none;border:none;color:var(--muted);font-size:12.5px;text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:0}
+.btn-link:hover{color:var(--text)}
+
+/* ---- account modal ---- */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal-backdrop.show{display:flex}
+.modal-panel{width:min(380px,100%);background:var(--panel-bg);border:1px solid var(--panel-border);border-radius:14px;padding:22px}
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.modal-head h3{margin:0;font-family:var(--font-brand);font-size:19px}
+.modal-close{background:var(--panel-alt);border:none;color:var(--muted);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:13px}
+.modal-close:hover{color:var(--text)}
+.modal-tabs{display:flex;gap:8px;margin-bottom:16px}
+.modal-tab{flex:1;background:var(--panel-alt);border:1px solid var(--panel-border);color:var(--muted);padding:8px;border-radius:6px;font-size:12.5px;font-weight:700;cursor:pointer}
+.modal-tab.active{background:var(--btn-primary);color:#fff;border-color:transparent}
+.form-field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.form-field label{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.form-field input{background:var(--panel-alt);border:1px solid var(--panel-border);border-radius:6px;color:var(--text);font-size:14px;padding:9px 10px}
+.form-status{font-size:12.5px;color:var(--muted);min-height:16px;margin-bottom:10px}
+.form-status.is-error{color:#e58a8a}
+.form-status.is-ok{color:#7fd0a0}
+.modal-step{display:none}
+.modal-step.active{display:block}
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="container">
+      <div class="topbar">
+        <div class="brand-lockup">
+          <img class="brand-mark" src="build/RC.ico" alt="Rocket Cast" />
+          <h1>Rocket Cast<span class="brand-plus-badge">+</span></h1>
+        </div>
+        <div class="topbar-actions">
+          <a class="btn btn-secondary" href="https://discord.com/invite/2jyNyNykRU" target="_blank" rel="noopener noreferrer">Join the Discord</a>
+          <a class="btn btn-primary download-btn" href="https://github.com/SnorklzSucks/RocketCast_App/releases/latest/download/Rocket.Cast.Setup.exe">Download</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="hero">
+        <div>
+          <h2 class="hero-heading"><span class="reveal-word">Cast</span><span class="reveal-word">how</span><span class="reveal-word reveal-word-faux-bold">you</span><span class="reveal-word">want.</span></h2>
+          <p class="download-counter" id="download-counter">
+            <span class="skel-bar" id="download-counter-skel" style="display:inline-block;width:170px;height:13px;border-radius:4px;vertical-align:middle"></span>
+          </p>
+        </div>
+        <div class="tweet-embed">
+          <div class="embed-skeleton" id="tweet-skeleton">
+            <div class="skel-bar h-sm"></div>
+            <div class="skel-bar h-lg"></div>
+            <div class="skel-bar h-media"></div>
+          </div>
+          <blockquote class="twitter-tweet" data-theme="dark">
+            <a href="https://twitter.com/RocketCastDev/status/2089805441249185886"></a>
+          </blockquote>
+          <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="included-grid">
+        <div class="included-shot-wrap">
+          <div class="skel-bar h-media" id="promo-shot-skeleton"></div>
+          <img class="included-shot" id="promo-shot" src="build/Screenshot%202026-08-21%20213208.png" alt="Rocket Cast Overlay Builder" />
+        </div>
+        <div>
+          <h2 class="hero-heading"><span class="reveal-word reveal-word-smaller-mild">Don't pay</span><span class="reveal-word reveal-word-smaller">to <span class="reveal-word-blue">customize</span></span></h2>
+          <p class="promo-text">Take advantage of our drag and drop overlay builder for free by using code <span class="promo-code">BETA2026</span> at Rocket Cast + checkout.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="container" id="features">
+      <div class="included-grid">
+        <div>
+          <div class="section-title">What's Included</div>
+          <ul class="plain-list">
+            <li>Live Match Tracking</li>
+            <li>Built-In Broadcast Overlay</li>
+            <li>Custom Keybinds</li>
+            <li>Co-Stream (up to 4 casters)</li>
+          </ul>
+        </div>
+        <div class="included-shot-wrap">
+          <div class="skel-bar h-media" id="shot-skeleton"></div>
+          <img class="included-shot" id="included-shot" src="build/Screenshot%202026-06-07%20105950.png" alt="Rocket Cast overlay example" />
+        </div>
+      </div>
+    </div>
+
+    <div class="container" id="plans">
+      <div class="plans-grid">
+        <div class="plan-panel">
+          <h3>Free</h3>
+          <ul>
+            <li>Live match tracking</li>
+            <li>Built-in broadcast overlay</li>
+            <li>Custom keybinds</li>
+            <li>Co-stream with up to 4 casters</li>
+          </ul>
+        </div>
+        <div class="plan-panel is-plus">
+          <h3>Rocket Cast <span class="gold">+</span></h3>
+          <ul>
+            <li>Everything in Free</li>
+            <li>Overlay Builder</li>
+            <li>Match History &amp; recorded stats</li>
+            <li>Auto Recording &amp; Highlight Reels</li>
+            <li>Multi-camera feeds with auto-switching</li>
+            <li>Unlimited co-stream seats</li>
+          </ul>
+          <div class="account-block">
+            <div class="account-signed-out" id="account-signed-out">
+              <button class="btn btn-secondary" type="button" data-open-modal="login">Log In</button>
+              <button class="btn btn-primary" type="button" data-open-modal="register">Create Account</button>
+            </div>
+            <div class="account-signed-in" id="account-signed-in" style="display:none">
+              <span>Signed in as <b id="account-email"></b><span class="account-badge" id="account-plus-badge" style="display:none">Rocket Cast +</span></span>
+              <span style="display:flex;gap:14px;align-items:center">
+                <button class="btn btn-primary" type="button" id="account-upgrade-btn">Upgrade to Rocket Cast +</button>
+                <button class="btn-link" type="button" id="account-logout-btn">Log out</button>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="app-footer-bar">
+        <span>© <span id="footer-year"></span> Rocket Cast. Not affiliated with Psyonix or Epic Games.</span>
+        <span>
+          <a href="https://discord.com/invite/2jyNyNykRU" target="_blank" rel="noopener noreferrer">Discord</a>
+          &nbsp;·&nbsp;
+          <a href="https://ko-fi.com/rocketcast" target="_blank" rel="noopener noreferrer">Support</a>
+          &nbsp;·&nbsp;
+          <a href="/privacy">Privacy</a>
+          &nbsp;·&nbsp;
+          <a href="/terms">Terms</a>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="account-modal-backdrop">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h3 id="account-modal-title">Log In</h3>
+        <button class="modal-close" type="button" id="account-modal-close" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-tabs">
+        <button class="modal-tab" type="button" data-tab="login">Log In</button>
+        <button class="modal-tab" type="button" data-tab="register">Create Account</button>
+      </div>
+      <div class="form-status" id="account-modal-status"></div>
+
+      <div class="modal-step" data-panel="login">
+        <div class="form-field">
+          <label for="login-identifier">Username or Email</label>
+          <input id="login-identifier" type="text" autocomplete="username" />
+        </div>
+        <div class="form-field">
+          <label for="login-password">Password</label>
+          <input id="login-password" type="password" autocomplete="current-password" />
+        </div>
+        <button class="btn btn-primary" type="button" id="login-submit-btn" style="width:100%">Log In</button>
+      </div>
+
+      <div class="modal-step" data-panel="register">
+        <div class="modal-step active" data-register-step="email">
+          <div class="form-field">
+            <label for="register-email">Email</label>
+            <input id="register-email" type="email" autocomplete="email" />
+          </div>
+          <div class="form-field">
+            <label for="register-password">Password</label>
+            <input id="register-password" type="password" autocomplete="new-password" />
+          </div>
+          <button class="btn btn-primary" type="button" id="register-send-code-btn" style="width:100%">Send Code</button>
+        </div>
+        <div class="modal-step" data-register-step="code">
+          <div class="form-field">
+            <label for="register-code">6-Digit Code</label>
+            <input id="register-code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" />
+          </div>
+          <button class="btn btn-primary" type="button" id="register-verify-code-btn" style="width:100%">Verify &amp; Create Account</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+// Download buffer wheel: swap the clicked button's label for a spinner
+// briefly. The click still follows the link normally (it's a direct
+// file download, not a page navigation), this is just visual feedback
+// that something happened.
+document.querySelectorAll('.download-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.classList.contains('is-loading')) return;
+    const original = btn.innerHTML;
+    btn.classList.add('is-loading');
+    btn.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span>Starting download…';
+    setTimeout(() => {
+      btn.innerHTML = original;
+      btn.classList.remove('is-loading');
+    }, 1800);
+  });
+});
+
+// Download counter: real GitHub release-asset download counts (server
+// caches this for 10 minutes, so this fetch is cheap regardless of
+// traffic). Uses the exact "Rocket.Cast.Setup.exe" asset count across all
+// releases -- the one number that means "times the actual installer was
+// downloaded," not inflated by .blockmap/latest.yml noise. Hides itself
+// entirely on failure rather than shimmering forever for a stat that
+// isn't essential to the page.
+(() => {
+  const el = document.getElementById('download-counter');
+  fetch('/api/analytics/github-downloads').then(r => r.json()).then(data => {
+    const count = Number(data?.totalSetupExeDownloads || 0);
+    if (!count) { el.style.display = 'none'; return; }
+    el.innerHTML = `<b>${count.toLocaleString()}</b> downloads and counting`;
+  }).catch(() => { el.style.display = 'none'; });
+})();
+
+// Screenshot: reveal with a fade once it's actually loaded; skeleton stays
+// underneath until then (and stays put if the image never loads).
+function revealShotWhenLoaded(imgId, skelId) {
+  const img = document.getElementById(imgId);
+  const skel = document.getElementById(skelId);
+  if (!img || !skel) return;
+  const reveal = () => { img.classList.add('is-loaded'); skel.style.display = 'none'; };
+  if (img.complete && img.naturalWidth) reveal();
+  else img.addEventListener('load', reveal);
+}
+revealShotWhenLoaded('included-shot', 'shot-skeleton');
+revealShotWhenLoaded('promo-shot', 'promo-shot-skeleton');
+
+// Tweet embed: hide the skeleton once Twitter's widget actually renders
+// the tweet, with a timeout fallback in case the script never loads
+// (blocked, offline, etc.) so it doesn't shimmer forever.
+(() => {
+  const skel = document.getElementById('tweet-skeleton');
+  const hide = () => skel.classList.add('is-hidden');
+  const timeout = setTimeout(hide, 6000);
+  const poll = setInterval(() => {
+    if (window.twttr && window.twttr.ready) {
+      clearInterval(poll);
+      window.twttr.ready(twttr => {
+        twttr.events.bind('rendered', () => { clearTimeout(timeout); hide(); });
+      });
+    }
+  }, 200);
+})();
+
+// ---- Accounts: the same /api/web/auth + /api/web/billing endpoints the
+// desktop app talks to, over the httpOnly session cookie (credentials:
+// 'include' on every call -- no token to manage in JS).
+(() => {
+  const backdrop = document.getElementById('account-modal-backdrop');
+  const modalTitle = document.getElementById('account-modal-title');
+  const modalStatus = document.getElementById('account-modal-status');
+  const tabs = document.querySelectorAll('.modal-tab');
+  const panels = document.querySelectorAll('.modal-step[data-panel]');
+  const signedOutEl = document.getElementById('account-signed-out');
+  const signedInEl = document.getElementById('account-signed-in');
+  const emailEl = document.getElementById('account-email');
+  const plusBadgeEl = document.getElementById('account-plus-badge');
+  const upgradeBtn = document.getElementById('account-upgrade-btn');
+
+  function setStatus(msg, kind) {
+    modalStatus.textContent = msg || '';
+    modalStatus.className = 'form-status' + (kind ? ' is-' + kind : '');
+  }
+
+  function setBusy(btn, busy, label) {
+    if (busy) { btn.dataset.label = btn.textContent; btn.disabled = true; btn.textContent = label; }
+    else { btn.disabled = false; btn.textContent = btn.dataset.label || btn.textContent; }
+  }
+
+  async function api(path, body) {
+    const res = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(body || {})
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+    return data;
+  }
+
+  function showTab(name) {
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    panels.forEach(p => p.classList.toggle('active', p.dataset.panel === name));
+    modalTitle.textContent = name === 'register' ? 'Create Account' : 'Log In';
+    setStatus('');
+    if (name === 'register') {
+      document.querySelectorAll('[data-register-step]').forEach(s => s.classList.toggle('active', s.dataset.registerStep === 'email'));
+    }
+  }
+
+  function openModal(tab) {
+    backdrop.classList.add('show');
+    showTab(tab || 'login');
+  }
+  function closeModal() { backdrop.classList.remove('show'); }
+
+  document.getElementById('account-modal-close').addEventListener('click', closeModal);
+  backdrop.addEventListener('click', e => { if (e.target === backdrop) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && backdrop.classList.contains('show')) closeModal(); });
+  tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+  document.querySelectorAll('[data-open-modal]').forEach(btn => {
+    btn.addEventListener('click', () => openModal(btn.dataset.openModal));
+  });
+
+  async function refreshAccountState() {
+    try {
+      const data = await (await fetch('/api/web/auth/me', { credentials: 'include' })).json();
+      if (!data.ok) throw new Error();
+      signedOutEl.style.display = 'none';
+      signedInEl.style.display = 'flex';
+      emailEl.textContent = data.user.email;
+      const isPlus = data.entitlement && data.entitlement.entitlement === 'premium' && data.entitlement.status === 'active';
+      plusBadgeEl.style.display = isPlus ? 'inline-block' : 'none';
+      upgradeBtn.style.display = isPlus ? 'none' : 'inline-flex';
+    } catch {
+      signedOutEl.style.display = 'flex';
+      signedInEl.style.display = 'none';
+    }
+  }
+
+  document.getElementById('login-submit-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('login-submit-btn');
+    const identifier = document.getElementById('login-identifier').value.trim();
+    const password = document.getElementById('login-password').value;
+    if (!identifier || !password) return setStatus('Enter your username/email and password.', 'error');
+    setBusy(btn, true, 'Logging in…');
+    try {
+      await api('/api/web/auth/login', { identifier, email: identifier, password });
+      closeModal();
+      await refreshAccountState();
+    } catch (e) {
+      setStatus(e.message, 'error');
+    } finally {
+      setBusy(btn, false);
+    }
+  });
+
+  document.getElementById('register-send-code-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('register-send-code-btn');
+    const email = document.getElementById('register-email').value.trim();
+    const password = document.getElementById('register-password').value;
+    if (!email || !email.includes('@')) return setStatus('Enter a valid email.', 'error');
+    if (password.length < 10) return setStatus('Password must be at least 10 characters.', 'error');
+    setBusy(btn, true, 'Sending…');
+    try {
+      await api('/api/web/auth/register/send-code', { email });
+      setStatus('Code sent — check your email.', 'ok');
+      document.querySelectorAll('[data-register-step]').forEach(s => s.classList.toggle('active', s.dataset.registerStep === 'code'));
+    } catch (e) {
+      setStatus(e.message, 'error');
+    } finally {
+      setBusy(btn, false);
+    }
+  });
+
+  document.getElementById('register-verify-code-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('register-verify-code-btn');
+    const email = document.getElementById('register-email').value.trim();
+    const password = document.getElementById('register-password').value;
+    const code = document.getElementById('register-code').value.trim();
+    if (!/^\d{6}$/.test(code)) return setStatus('Enter the 6-digit code.', 'error');
+    setBusy(btn, true, 'Verifying…');
+    try {
+      await api('/api/web/auth/register/verify-code', { email, code });
+      await api('/api/web/auth/register', { email, password });
+      closeModal();
+      await refreshAccountState();
+    } catch (e) {
+      setStatus(e.message, 'error');
+    } finally {
+      setBusy(btn, false);
+    }
+  });
+
+  upgradeBtn.addEventListener('click', async () => {
+    setBusy(upgradeBtn, true, 'Opening checkout…');
+    try {
+      const data = await api('/api/web/billing/create-checkout-session', { planId: 'premium' });
+      window.location.href = data.checkoutUrl;
+    } catch (e) {
+      setBusy(upgradeBtn, false);
+      alert(e.message);
+    }
+  });
+
+  document.getElementById('account-logout-btn').addEventListener('click', async () => {
+    try { await fetch('/api/web/auth/logout', { method: 'POST', credentials: 'include' }); } catch {}
+    refreshAccountState();
+  });
+
+  refreshAccountState();
+})();
+</script>
+</body>
+</html>

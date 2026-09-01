@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+out/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Env files -- *.env catches things like rocket-cast-web.env too, not just
+# a leading-dot .env/.env.*, which is what let that file slip through
+# tracked/served for a while (see server.js's static-serving deny-list).
+.env
+.env.*
+*.env
+
+# Electron builder cache (local user cache, not in repo)
+# C:\Users\<you>\AppData\Local\electron-builder\Cache

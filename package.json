@@ -1,38 +1,64 @@
 {
   "name": "rc---rocket-cast",
-  "version": "1.1.1",
-  "description": "",
+  "version": "1.8.0",
+  "description": "Rocket League broadcast overlays and a control panel for casters. Free build.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win nsis",
-    "auth-api:install": "npm --prefix auth-api install",
-    "auth-api:start": "npm --prefix auth-api start"
+    "start:firsttime": "electron . --show-welcome",
+    "dist": "set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win nsis -c.forceCodeSigning=false --publish never",
+    "dist:test": "set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win nsis -c.forceCodeSigning=false -c.extraMetadata.version=%npm_package_version%-test --publish never",
+    "dist:ci:signed": "electron-builder --win nsis --publish never",
+    "audit": "npm audit --omit=dev --audit-level=high"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gameed5000-dot/RC---Rocket-Cast.git"
+    "url": "https://github.com/SnorklzSucks/RocketCast_App.git"
   },
   "type": "commonjs",
   "devDependencies": {
+    "@electron/fuses": "^1.8.0",
     "electron": "^42.4.0",
-    "electron-builder": "^26.15.2"
+    "electron-builder": "^26.15.2",
+    "html-minifier-terser": "^7.2.0",
+    "terser": "^5.44.0"
   },
   "dependencies": {
+    "compression": "^1.8.1",
+    "dotenv": "^17.4.2",
     "electron-log": "^5.4.4",
     "electron-updater": "^6.8.9",
     "express": "^5.2.1",
-    "git": "^0.1.5",
+    "ffmpeg-static": "^5.3.0",
+    "imapflow": "^1.7.6",
+    "localtunnel": "^2.0.2",
+    "multer": "^2.2.0",
+    "obs-websocket-js": "^5.0.8",
+    "pg": "^8.13.1",
+    "posthog-node": "^5.39.1",
     "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "stripe": "^18.4.0",
     "ws": "^8.21.0"
+  },
+  "overrides": {
+    "axios": "^1.19.0"
   },
   "build": {
     "appId": "com.rocketcast.app",
     "productName": "Rocket Cast",
-    "artifactName": "Rocket Cast Setup.${ext}",
+    "artifactName": "Rocket.Cast.Setup.${ext}",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**"
+    ],
+    "forceCodeSigning": false,
+    "beforePack": "scripts/before-pack-minify.js",
+    "afterPack": "scripts/after-pack-hardening.js",
+    "afterAllArtifactBuild": "scripts/after-all-artifacts-restore.js",
     "files": [
       "main.js",
       "server.js",
@@ -51,8 +77,8 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "gameed5000-dot",
-      "repo": "RC---Rocket-Cast",
+      "owner": "SnorklzSucks",
+      "repo": "RocketCast_App",
       "releaseType": "release"
     },
     "nsis": {

@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /control
+Disallow: /browser-source
+Disallow: /media/
+
+Sitemap: https://rocketcast.net/sitemap.xml
