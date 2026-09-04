@@ -118,11 +118,6 @@ Not included here:
 - Goal capture, highlight reels, OBS recording integration and match history
 - Unlimited guest seats
 
-If you're reading the source and wondering where a route went: anything under
-`/api/web/auth`, `/api/web/billing`, `/api/web/admin`, `/api/bracket`,
-`/api/matches`, `/api/reels` or `/api/recording` belongs to that module and
-answers `404` in this build.
-
 ## Repository layout
 
 ```
@@ -131,7 +126,7 @@ preload.js       Renderer bridge
 server.js        Control + overlay server (free build)
 index.html       Control panel
 renderer.js      Panel-side helpers
-overlays/        Bundled overlays (RLCS, Bracket -- Bracket needs Rocket Cast +)
+overlays/        Bundled overlays (RLCS)
 public/          Landing page, loader, universal overlay control
 build/           Icons and panel artwork
 ```
