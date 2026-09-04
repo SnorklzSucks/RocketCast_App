@@ -1,11 +1,11 @@
-# Rocket Cast
+t# Rocket Cast
 
 Broadcast overlays and a control panel for Rocket League casters. Rocket Cast
 reads live match state from the game, serves overlays over HTTP for OBS to pick
 up as browser sources, and gives you one panel to drive team names, colours,
 logos, scores and series state while you cast.
 
-This repository is the **free build**. It runs standalone — no account, no
+This repository is the **free build**. It runs standalone, no account, no
 sign-in, nothing to pay for. Everything that needs an account lives in a
 separate module that is not part of this repo; see
 [Rocket Cast +](#rocket-cast-) below.
@@ -16,13 +16,13 @@ separate module that is not part of this repo; see
 
 | | |
 |---|---|
-| **Match Settings** | Team names, abbreviations, colours, logos, series length, series score, header text — pushed to every connected overlay live |
+| **Match Settings** | Team names, abbreviations, colours, logos, series length, series score, header text, pushed to every connected overlay live |
 | **Overlays** | A broadcast overlay included (RLCS), plus any custom overlay folder you drop in |
 | **Live game data** | Reads Rocket League over its TCP/WebSocket bridge and relays state, goals and replays to overlays over Socket.IO |
 | **Stats** | Live scoreboard and player stats for the match in progress |
 | **Options** | Themes, keybinds, port configuration, media storage location |
-| **LAN play** | Host your panel on the local network (or a tunnel) so a co-caster can drive it — up to 4 guest seats |
-| **Stream Deck API** | Plain HTTP endpoints for switching overlays from a deck |
+| **Multi-Seat** | Host your panel on the local network (or a tunnel) so a co-caster can drive it — up to 4 guest seats |
+| **Keybind Compatibility** | Easy Access for switching overlays with a click |
 | **Universal overlay control** | Toggle elements and edit text and colours live on *any* overlay, including ones never written for Rocket Cast |
 
 ## Getting started
@@ -70,7 +70,6 @@ http://localhost:3000/browser-source
 |------|--------|
 | `3000` | Control panel and overlays |
 | `3001` | Media (clips and highlight reels) |
-| `3002` | Bracket overlay |
 | `3101` | Internal IPC bridge |
 
 Override any of them with `PORT` / `RC_CONTROL_PORT`, `RC_MEDIA_PORT`,
@@ -115,14 +114,9 @@ behaviour.
 Not included here:
 
 - Accounts, sign-in and subscription billing
-- The admin panel
 - The Overlay Builder
-- Bracket generation and start.gg import (the Bracket overlay ships in
-  `overlays/`, but has nothing to render without the paid module behind it)
-- The Hype Chamber bridge (drives a companion Unreal Engine project over its
-  Remote Control API — admin-only even on the paid tier)
 - Goal capture, highlight reels, OBS recording integration and match history
-- Unlimited LAN guest seats
+- Unlimited guest seats
 
 If you're reading the source and wondering where a route went: anything under
 `/api/web/auth`, `/api/web/billing`, `/api/web/admin`, `/api/bracket`,
