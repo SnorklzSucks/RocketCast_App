@@ -432,58 +432,190 @@ body::-webkit-scrollbar{
 .tab-content.active{
   display:block
 }
-.overlay-toggle-rail{
+/* Dashboard sub-tabs: a slim always-on rail pinned to the right edge of the
+   viewport (same fixed-position trick the old overlay-toggle-rail used), and
+   a flyout panel that pops open to its left on hover/focus/click. Closes
+   again on mouse-out unless the lock button pins it open -- keeps the tab
+   content out of the layout entirely until it's actually wanted, so the
+   Dashboard tab stays compact regardless of how much any one pane holds. */
+.ms-dashboard-panel{
+  position:relative;
+  height:0
+}
+.ms-subtab-rail{
   position:fixed;
   right:0;
   top:50%;
   transform:translateY(-50%);
   z-index:400;
   display:flex;
-  flex-direction:row-reverse;
-  align-items:stretch
+  flex-direction:column;
+  gap:6px
 }
-.overlay-toggle-rail-handle{
-  width:14px;
+.ms-subtab-btn{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:3px;
+  width:54px;
+  padding:10px 4px;
   background:var(--panel-bg);
+  color:var(--muted);
   border:1px solid var(--panel-border);
   border-right:none;
   border-radius:10px 0 0 10px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:var(--muted);
-  cursor:pointer;
-  transition:color .2s ease
+  cursor:grab;
+  text-align:center;
+  font-size:calc(9.5px * var(--font-scale));
+  font-weight:700;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  transition:color .2s ease,background-color .2s ease
 }
-.overlay-toggle-rail-handle svg{
-  transform:rotate(180deg)
+.ms-subtab-btn[hidden]{
+  display:none
 }
-.overlay-toggle-rail:hover .overlay-toggle-rail-handle,
-.overlay-toggle-rail:focus-within .overlay-toggle-rail-handle{
-  color:var(--accent)
+.ms-subtab-btn-icon{
+  display:flex
 }
-.overlay-toggle-rail-panel{
+.ms-subtab-btn-icon svg{
+  width:18px;
+  height:18px
+}
+.ms-subtab-btn:hover,
+.ms-subtab-btn.active{
+  color:var(--accent);
+  background:var(--tab-bg-active)
+}
+.ms-subtab-btn.ms-subtab-dragging{
+  opacity:.5
+}
+.ms-subtab-flyout{
+  position:fixed;
+  right:58px;
+  top:50%;
   width:0;
+  max-height:80vh;
   overflow:hidden;
   background:var(--panel-bg);
   border:1px solid var(--panel-border);
-  border-right:none;
-  border-radius:12px 0 0 12px;
-  transition:width .25s ease, padding .25s ease;
-  white-space:nowrap
+  border-radius:12px;
+  box-shadow:0 20px 60px rgba(0,0,0,.35);
+  opacity:0;
+  pointer-events:none;
+  z-index:399;
+  transform:translateY(-50%) translateX(14px) scale(.96);
+  transform-origin:right center;
+  transition:width .18s ease,opacity .16s ease,transform .16s ease
 }
-.overlay-toggle-rail:hover .overlay-toggle-rail-panel,
-.overlay-toggle-rail:focus-within .overlay-toggle-rail-panel{
-  width:236px;
-  padding:16px
+.ms-subtab-flyout.open{
+  width:min(420px,86vw);
+  opacity:1;
+  pointer-events:auto;
+  transform:translateY(-50%) translateX(0) scale(1)
 }
-.overlay-toggle-rail-title{
+.ms-subtab-flyout-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:12px 16px;
+  border-bottom:1px solid var(--panel-border)
+}
+.ms-subtab-flyout-title{
+  font-size:calc(12px * var(--font-scale));
+  font-weight:700;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+  color:var(--muted)
+}
+.ms-subtab-lock-btn{
+  border:none;
+  background:none;
+  color:var(--muted);
+  cursor:pointer;
+  padding:4px;
+  border-radius:6px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:color .2s ease,background-color .2s ease
+}
+.ms-subtab-lock-btn svg{
+  width:16px;
+  height:16px
+}
+.ms-subtab-lock-btn:hover{
+  color:var(--text);
+  background:var(--panel-hover)
+}
+.ms-subtab-lock-btn.locked{
+  color:#b7a23f
+}
+.ms-subtab-content{
+  padding:16px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  max-height:calc(80vh - 47px);
+  scrollbar-width:none;
+  -ms-overflow-style:none
+}
+.ms-subtab-content::-webkit-scrollbar{
+  display:none
+}
+.ms-subtab-pane{
+  display:none
+}
+.ms-subtab-pane.active{
+  display:block;
+  animation:msPaneIn .16s ease-out
+}
+@keyframes msPaneIn{
+  from{opacity:0;transform:scale(.97)}
+  to{opacity:1;transform:scale(1)}
+}
+.ms-subtab-pane-title{
   font-size:calc(11px * var(--font-scale));
   font-weight:700;
   letter-spacing:.08em;
   text-transform:uppercase;
   color:var(--muted);
   margin-bottom:12px
+}
+.ms-subtab-content .recording-layout{
+  grid-template-columns:1fr
+}
+.ms-overlays-intro{
+  margin-bottom:14px
+}
+.ms-overlays-subtitle{
+  color:var(--muted);
+  font-size:calc(13px * var(--font-scale));
+  margin:0
+}
+.ms-overlay-grid{
+  gap:14px
+}
+.ms-overlay-card{
+  padding:16px;
+  border-radius:14px
+}
+.ms-overlay-card-desc{
+  color:var(--muted);
+  font-size:calc(12px * var(--font-scale));
+  margin:2px 0 12px
+}
+
+@media (max-width:640px){
+  .ms-subtab-flyout{
+    right:8px;
+    left:8px;
+    width:auto !important;
+    max-width:none
+  }
+  .ms-subtab-flyout.open{
+    width:auto
+  }
 }
 .overlay-toggle-row{
   display:flex;
@@ -734,11 +866,6 @@ body::-webkit-scrollbar{
 .stats-view-section.active{
   display:block
 }
-.stats-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-  gap:12px
-}
 .stats-card{
   background:var(--panel-bg);
   border:1px solid var(--panel-border);
@@ -840,6 +967,219 @@ body::-webkit-scrollbar{
   background:var(--fun-bg);
   color:var(--text)
 }
+/* Live stats: on-brand scoreboard + a two-column dashboard that fills the
+   width a caster actually has available instead of one narrow vertical
+   stack -- team colors come from the same blue/orange color pickers as the
+   overlay, so this always matches whatever's on stream. */
+.stats-scoreboard{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  align-items:stretch;
+  background:var(--panel-bg);
+  border:1px solid var(--panel-border);
+  border-radius:12px;
+  overflow:hidden;
+  margin-bottom:16px
+}
+.stats-scoreboard-team{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:14px 20px;
+  min-width:0
+}
+.stats-scoreboard-team.orange{
+  flex-direction:row-reverse;
+  text-align:right
+}
+.stats-scoreboard-color{
+  width:5px;
+  align-self:stretch;
+  border-radius:3px;
+  flex:0 0 auto
+}
+.stats-scoreboard-name{
+  font-size:calc(15px * var(--font-scale));
+  font-weight:700;
+  letter-spacing:.02em;
+  color:var(--text);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.stats-scoreboard-score{
+  margin-left:auto;
+  font-size:calc(30px * var(--font-scale));
+  font-weight:800;
+  font-family:var(--font-brand);
+  color:var(--text);
+  line-height:1
+}
+.stats-scoreboard-team.orange .stats-scoreboard-score{
+  margin-left:0;
+  margin-right:auto
+}
+.stats-scoreboard-mid{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  padding:10px 20px;
+  background:var(--panel-alt);
+  border-left:1px solid var(--panel-border);
+  border-right:1px solid var(--panel-border)
+}
+.stats-scoreboard-clock{
+  font-size:calc(18px * var(--font-scale));
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+  color:var(--text);
+  white-space:nowrap
+}
+.stats-scoreboard-status{
+  font-size:calc(10px * var(--font-scale));
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--accent)
+}
+.stats-scoreboard-status.is-ot{
+  color:#f39c12
+}
+.stats-scoreboard-status.is-replay{
+  color:var(--muted)
+}
+.stats-live-grid{
+  display:grid;
+  grid-template-columns:2fr 1fr;
+  gap:16px;
+  align-items:start
+}
+.stats-live-main,
+.stats-live-side{
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  min-width:0
+}
+@media (max-width:1080px){
+  .stats-live-grid{
+    grid-template-columns:1fr
+  }
+}
+.stats-insight-row{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:10px
+}
+.stats-insight-tile{
+  background:var(--panel-bg);
+  border:1px solid var(--panel-border);
+  border-radius:10px;
+  padding:11px 13px;
+  display:flex;
+  flex-direction:column;
+  gap:4px
+}
+.stats-insight-label{
+  font-size:calc(10px * var(--font-scale));
+  font-weight:700;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+  color:var(--muted)
+}
+.stats-insight-value{
+  font-size:calc(16px * var(--font-scale));
+  font-weight:700;
+  color:var(--accent)
+}
+.stats-insight-sub{
+  font-size:calc(11px * var(--font-scale));
+  color:var(--muted)
+}
+.stats-team-compare{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px
+}
+@media (max-width:640px){
+  .stats-team-compare{
+    grid-template-columns:1fr
+  }
+}
+.stats-team-card{
+  background:var(--panel-bg);
+  border:1px solid var(--panel-border);
+  border-top:3px solid var(--panel-border);
+  border-radius:10px;
+  padding:14px
+}
+.stats-team-card h4{
+  margin:0 0 10px;
+  font-size:calc(14px * var(--font-scale));
+  font-weight:700;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.stats-team-stat-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:calc(12px * var(--font-scale));
+  padding:5px 0;
+  border-top:1px solid color-mix(in srgb,var(--panel-border) 60%,transparent)
+}
+.stats-team-stat-row:first-of-type{
+  border-top:none
+}
+.stats-team-stat-label{
+  color:var(--muted);
+  flex:0 0 78px
+}
+.stats-team-stat-value{
+  flex:0 0 auto;
+  font-weight:700;
+  min-width:36px;
+  text-align:right
+}
+.stats-team-stat-bar{
+  flex:1;
+  height:6px;
+  background:var(--bg);
+  border:1px solid var(--panel-border);
+  border-radius:999px;
+  overflow:hidden
+}
+.stats-team-stat-bar-fill{
+  height:100%
+}
+.stats-leader-stack{
+  display:flex;
+  flex-direction:column;
+  gap:10px
+}
+.stats-leader-stack .stats-card{
+  padding:11px 13px
+}
+.stats-leader-stack .stats-card h3{
+  font-size:calc(11px * var(--font-scale));
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  color:var(--muted);
+  margin-bottom:6px
+}
+.stats-leader-stack .stats-card.is-mvp{
+  border-color:var(--accent)
+}
+.stats-panel-points{
+  flex:1;
+  min-height:0
+}
+.stats-panel-points .talking-points{
+  grid-template-columns:1fr
+}
 .empty-state{
   color:var(--muted);
   font-size:calc(14px * var(--font-scale))
@@ -897,8 +1237,8 @@ body::-webkit-scrollbar{
   letter-spacing:.05em
 }
 .recording-actions{
-  display:flex;
-  flex-direction:column;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
   gap:8px
 }
 .recording-frame-editor{
@@ -960,9 +1300,22 @@ body::-webkit-scrollbar{
 .recording-status-list li{
   display:flex;
   justify-content:space-between;
+  align-items:center;
   gap:8px;
+  padding:6px 10px;
+  border-radius:8px;
+  background:var(--panel-alt);
   font-size:calc(12px * var(--font-scale));
   color:var(--muted)
+}
+.recording-status-list li strong{
+  color:var(--text)
+}
+.recording-status-list li strong.status-good{
+  color:var(--btn-success)
+}
+.recording-status-list li strong.status-bad{
+  color:var(--btn-danger)
 }
 .recording-preview-wrap{
   position:relative;
@@ -1100,7 +1453,6 @@ body::-webkit-scrollbar{
   margin:0
 }
 .recording-method-help-btn{
-  margin-left:8px;
   width:auto;
   padding:12px 20px;
   font-size:calc(14px * var(--font-scale));
@@ -1389,6 +1741,14 @@ select option{
 }
 .history-action-btn-secondary{
   background:var(--btn-secondary)
+}
+.history-action-btn.is-looping{
+  background:var(--btn-success)
+}
+.history-game-reel-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px
 }
 .history-games-collapse{
   border:1px solid var(--panel-border);
@@ -1896,8 +2256,16 @@ select option{
 }
 .admin-table{width:100%;border-collapse:collapse;font-size:calc(12px * var(--font-scale))}
 .admin-table th{text-align:left;padding:8px 6px;color:var(--muted);border-bottom:1px solid var(--panel-border);font-weight:600;white-space:nowrap}
+.admin-table th[data-admin-sort]{cursor:pointer;user-select:none}
+.admin-table th[data-admin-sort]:hover{color:var(--text)}
 .admin-table td{padding:8px 6px;vertical-align:middle}
 .admin-table tr.admin-row-mismatch{background:rgba(245,185,58,.07)}
+/* Account Management spans the full width of .premium-shell (see
+   panel-plus.js) and gets a much taller viewport-relative cap instead of
+   the small fixed 220px .premium-admin-output height, so a full-screened
+   window shows the whole account list rather than a few rows at a time. */
+.admin-output-big{max-height:min(74vh,1100px)}
+.admin-output-big .admin-table thead th{position:sticky;top:0;background:var(--status-bg);z-index:1}
 .admin-row-actions{display:flex;gap:6px;flex-wrap:wrap}
 .admin-mini-btn{
   width:auto;
@@ -5163,7 +5531,7 @@ textarea:focus-visible{
           </button>
         </div>
         <nav class="tab-row">
-          <button class="tab-btn active" data-tab="match-settings" title="Match Settings">
+          <button class="tab-btn active" data-tab="match-settings" title="Dashboard">
             <span class="tab-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                 <line x1="4" y1="6" x2="20" y2="6">
@@ -5180,19 +5548,7 @@ textarea:focus-visible{
                 </circle>
               </svg>
             </span>
-            <span class="tab-label">Match Settings</span>
-            </button> <button class="tab-btn" data-tab="overlays" title="Overlays">
-            <span class="tab-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="12 2 2 7 12 12 22 7 12 2">
-                </polygon>
-                <polyline points="2 17 12 22 22 17">
-                </polyline>
-                <polyline points="2 12 12 17 22 12">
-                </polyline>
-              </svg>
-            </span>
-            <span class="tab-label">Overlays</span>
+            <span class="tab-label">Dashboard</span>
             </button> <button class="tab-btn" data-tab="stats" title="Stats">
             <span class="tab-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -5299,73 +5655,207 @@ textarea:focus-visible{
               <label>Orange Color</label> <input type="color" id="orange-color" value="#fd5b00">
             </div>
           </div>
-          <div id="camera-feeds-section" style="display:none;margin-top:18px;padding:16px;border:1px solid var(--panel-border);border-radius:12px;background:var(--panel-alt)">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
-              <div>
-                <div style="font-weight:700">Camera Feeds (BETA)</div>
+          <div class="ms-dashboard-panel">
+            <div class="ms-subtab-rail" id="ms-subtab-rail">
+              <button type="button" class="ms-subtab-btn" data-subtab="cameras" draggable="true" title="Cameras">
+                <span class="ms-subtab-btn-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg></span>
+                <span class="ms-subtab-btn-label">Cam</span>
+              </button>
+              <button type="button" class="ms-subtab-btn" data-subtab="toggles" draggable="true" title="Toggles">
+                <span class="ms-subtab-btn-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="5" width="22" height="14" rx="7"></rect><circle cx="16" cy="12" r="3" fill="currentColor" stroke="none"></circle></svg></span>
+                <span class="ms-subtab-btn-label">Toggle</span>
+              </button>
+              <button type="button" class="ms-subtab-btn" data-subtab="recording" draggable="true" title="Recording">
+                <span class="ms-subtab-btn-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"></circle></svg></span>
+                <span class="ms-subtab-btn-label">Record</span>
+              </button>
+              <button type="button" class="ms-subtab-btn" data-subtab="overlays" draggable="true" title="Overlays">
+                <span class="ms-subtab-btn-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></span>
+                <span class="ms-subtab-btn-label">Overlay</span>
+              </button>
+            </div>
+            <div class="ms-subtab-flyout" id="ms-subtab-flyout">
+              <div class="ms-subtab-flyout-head">
+                <span class="ms-subtab-flyout-title" id="ms-subtab-flyout-title">Cameras</span>
+                <button type="button" class="ms-subtab-lock-btn" id="ms-subtab-lock-btn" aria-pressed="false" title="Lock this panel open">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+                </button>
               </div>
-              <button class="btn" id="add-camera-btn" style="background:var(--btn-utility);color:#fff;width:auto;margin:0">Add Camera</button>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-              <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text)">
-                <input type="checkbox" id="camera-only-score" style="width:16px;height:16px"> Only show scoring team camera</label>
-            </div>
-            <div id="camera-list">
-            </div>
-            <div id="camera-preview" style="margin-top:10px;min-height:220px;border:1px solid var(--panel-border);border-radius:10px;background:var(--panel-bg);display:flex;align-items:center;justify-content:center;color:var(--muted);overflow:hidden">
-            </div>
-          </div>
-          <div id="obs-record-settings-row" style="display:none;margin-top:12px;padding:12px;border:1px solid var(--panel-border);border-radius:12px;background:var(--panel-alt)">
-            <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;color:var(--text)">
-              <span>Record goals for Highlights</span> <input id="obs-record-enabled-settings" type="checkbox" style="width:18px;height:18px">
-            </label>
-          </div>
-          <div class="overlay-toggle-rail" id="overlay-toggle-rail" tabindex="0" title="Overlay elements">
-            <div class="overlay-toggle-rail-handle" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
-            </div>
-            <div class="overlay-toggle-rail-panel">
-              <div class="overlay-toggle-rail-title">Overlay Elements</div>
-              <label class="overlay-toggle-row">
-                <span>Scoreboard</span>
-                <span class="overlay-toggle-switch"><input type="checkbox" id="overlay-toggle-scoreboard" checked><span class="overlay-toggle-switch-track"></span></span>
-              </label>
-              <label class="overlay-toggle-row">
-                <span>Boost Wheel</span>
-                <span class="overlay-toggle-switch"><input type="checkbox" id="overlay-toggle-boost-wheel" checked><span class="overlay-toggle-switch-track"></span></span>
-              </label>
-              <label class="overlay-toggle-row">
-                <span>Bottom Player Card</span>
-                <span class="overlay-toggle-switch"><input type="checkbox" id="overlay-toggle-bottom-player-card" checked><span class="overlay-toggle-switch-track"></span></span>
-              </label>
-              <label class="overlay-toggle-row">
-                <span>Side Player Cards</span>
-                <span class="overlay-toggle-switch"><input type="checkbox" id="overlay-toggle-side-player-cards" checked><span class="overlay-toggle-switch-track"></span></span>
-              </label>
-            </div>
-          </div>
-        </div>
-        <div id="overlays" class="tab-content">
-          <h2 style="margin-bottom:12px">Available Overlays</h2>
-          <div class="overlay-controls">
-            <button class="btn" id="upload-overlay-btn" style="background:var(--btn-success);color:#fff;width:auto;margin:0">Upload Overlay Folder</button> <button class="btn" id="open-overlays-folder-btn" style="background:var(--btn-secondary);color:#fff;width:auto;margin:0">Open Overlay Folder</button> <button class="btn" id="refresh-overlays-btn" style="background:var(--btn-primary);color:#fff;width:auto;margin:0">Refresh</button>
-            <div class="overlay-hint">Overlay folder must include overlay.html</div>
-          </div>
-          <div id="overlays-error-banner" class="overlays-error-banner" style="display:none">
-            <span id="overlays-error-text">Couldn't load overlays.</span> <button class="btn" id="overlays-retry-btn" type="button" style="background:var(--btn-primary);color:#fff;width:auto;margin:0">Retry</button>
-          </div>
-          <div class="overlay-grid">
-            <div class="overlay-card">
-              <div class="overlay-card-title">Built-in Overlays</div>
-              <select id="builtin-overlay-select" class="overlay-select">
-                </select> <button class="btn" id="launch-builtin-overlay-btn" style="background:var(--btn-primary);color:#fff;width:auto;margin:0">Launch Built-in</button>
-            </div>
-            <div class="overlay-card">
-              <div class="overlay-card-title">Uploaded Overlays</div>
-              <select id="custom-overlay-select" class="overlay-select">
-                </select> <button class="btn" id="launch-custom-overlay-btn" style="background:var(--btn-success);color:#fff;width:auto;margin:0">Launch Uploaded</button> <button class="btn" id="delete-custom-overlay-btn" style="background:var(--btn-danger);color:#fff;width:auto;margin-top:8px">Delete Overlay</button>
+              <div class="ms-subtab-content">
+              <div class="ms-subtab-pane" data-subtab-pane="cameras">
+                <div id="camera-feeds-section" style="display:none">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+                    <div>
+                      <div style="font-weight:700">Camera Feeds (BETA)</div>
+                    </div>
+                    <button class="btn" id="add-camera-btn" style="background:var(--btn-utility);color:#fff;width:auto;margin:0">Add Camera</button>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text)">
+                      <input type="checkbox" id="camera-only-score" style="width:16px;height:16px"> Only show scoring team camera</label>
+                  </div>
+                  <div id="camera-list">
+                  </div>
+                  <div id="camera-preview" style="margin-top:10px;min-height:220px;border:1px solid var(--panel-border);border-radius:10px;background:var(--panel-bg);display:flex;flex-wrap:wrap;align-items:center;justify-content:center;color:var(--muted);overflow:hidden">
+                  </div>
+                </div>
+              </div>
+              <div class="ms-subtab-pane" data-subtab-pane="toggles">
+                <div class="ms-subtab-pane-title">Overlay Elements</div>
+                <label class="overlay-toggle-row">
+                  <span>Scoreboard</span>
+                  <span class="overlay-toggle-switch"><input type="checkbox" id="overlay-toggle-scoreboard" checked><span class="overlay-toggle-switch-track"></span></span>
+                </label>
+                <label class="overlay-toggle-row">
+                  <span>Boost Wheel</span>
+                  <span class="overlay-toggle-switch"><input type="checkbox" id="overlay-toggle-boost-wheel" checked><span class="overlay-toggle-switch-track"></span></span>
+                </label>
+                <label class="overlay-toggle-row">
+                  <span>Bottom Player Card</span>
+                  <span class="overlay-toggle-switch"><input type="checkbox" id="overlay-toggle-bottom-player-card" checked><span class="overlay-toggle-switch-track"></span></span>
+                </label>
+                <label class="overlay-toggle-row">
+                  <span>Side Player Cards</span>
+                  <span class="overlay-toggle-switch"><input type="checkbox" id="overlay-toggle-side-player-cards" checked><span class="overlay-toggle-switch-track"></span></span>
+                </label>
+              </div>
+              <div class="ms-subtab-pane" data-subtab-pane="recording">
+                <div class="recording-layout">
+                  <div class="recording-card">
+                    <h3>Recorder</h3>
+                    <div id="recording-method-obs" class="recording-method-panel">
+                      <div class="recording-setting-row">
+                        <label for="obs-address-input">OBS WebSocket</label> <input id="obs-address-input" type="text" value="ws://127.0.0.1:4455">
+                      </div>
+                      <div class="recording-setting-row">
+                        <label for="obs-password-input">Password</label> <input id="obs-password-input" type="password" placeholder="optional">
+                      </div>
+                      <div class="recording-actions" style="margin-top:8px">
+                        <button class="btn" id="obs-connect-btn" style="background:var(--btn-primary);color:#fff;width:auto;margin:0">Connect OBS</button> <button class="btn" id="obs-setup-replay-buffer-btn" type="button" style="background:var(--btn-utility);color:#fff;width:auto;margin:0">Auto Setup</button> <button class="btn" id="media-auto-setup-btn" type="button" style="background:var(--btn-utility);color:#fff;width:auto;margin:0">Auto Media Setup</button> <button class="btn recording-method-help-btn" id="obs-help-btn" type="button">Help</button>
+                      </div>
+                      <ul class="recording-status-list" style="margin-top:8px">
+                        <li>
+                          <span>OBS</span> <strong id="obs-connection-status">Disconnected</strong>
+                        </li>
+                        <li>
+                          <span>Replay Buffer</span> <strong id="obs-replay-status">Stopped</strong>
+                        </li>
+                      </ul>
+                      <div id="obs-record-settings-row" style="display:none;margin-top:12px;padding:12px;border:1px solid var(--panel-border);border-radius:12px;background:var(--panel-alt)">
+                        <label class="overlay-toggle-row" style="margin:0">
+                          <span>Record goals for Highlights</span>
+                          <span class="overlay-toggle-switch"><input id="obs-record-enabled-settings" type="checkbox"><span class="overlay-toggle-switch-track"></span></span>
+                        </label>
+                        <div id="obs-record-settings-note" class="status-note" style="margin-top:6px"></div>
+                      </div>
+                      <div class="recording-actions" style="margin-top:8px">
+                        <button class="btn" id="play-last-highlight-reel-btn" type="button" style="background:var(--btn-success);color:#fff;width:auto;margin:0">Play Last Highlight Reel</button>
+                      </div>
+                    </div>
+                    <div id="recording-method-internal" class="recording-method-panel" style="display:none">
+                      <div class="recording-actions">
+                        <button class="btn" id="recording-connect-game-btn" style="background:var(--btn-primary);color:#fff;width:auto;margin:0">Connect Rocket League Application</button> <button class="btn" id="recording-arm-buffer-btn" style="background:var(--btn-success);color:#fff;width:auto;margin:0">Start Auto Recorder</button> <button class="btn" id="recording-stop-btn" style="background:var(--btn-danger);color:#fff;width:auto;margin:0">Stop Recorder</button>
+                      </div>
+                      <ul class="recording-status-list">
+                        <li>
+                          <span>Active Match</span> <strong id="recording-active-match">None</strong>
+                        </li>
+                        <li>
+                          <span>Game Feed</span> <strong id="recording-game-feed">Disconnected</strong>
+                        </li>
+                        <li>
+                          <span>Capture</span> <strong id="recording-capture-format">--</strong>
+                        </li>
+                        <li>
+                          <span>Output</span> <strong id="recording-output-format">1920x1080 @ 60fps</strong>
+                        </li>
+                        <li>
+                          <span>Quality</span> <strong id="recording-output-quality-status">Balanced</strong>
+                        </li>
+                        <li>
+                          <span>Buffer</span> <strong id="recording-buffer-state">Not armed</strong>
+                        </li>
+                        <li>
+                          <span>Queued Goals</span> <strong id="recording-queued-goals">0</strong>
+                        </li>
+                        <li>
+                          <span>Last Upload</span> <strong id="recording-last-upload">--</strong>
+                        </li>
+                      </ul>
+                      <div class="recording-frame-editor">
+                        <div class="recording-setting-row">
+                          <label for="recording-output-fps">FPS</label> <select id="recording-output-fps">
+                          <option value="60" selected="selected">60 fps (Sharper)</option>
+                          <option value="30">30 fps (Smoother)</option>
+                          </select>
+                        </div>
+                        <div class="recording-setting-row">
+                          <label for="recording-output-resolution">Resolution</label> <select id="recording-output-resolution">
+                          <option value="1920x1080" selected="selected">1920x1080</option>
+                          <option value="1280x720">1280x720 (Lighter)</option>
+                          </select>
+                        </div>
+                        <div class="recording-setting-row">
+                          <label for="recording-output-quality-select">Quality</label> <select id="recording-output-quality-select">
+                          <option value="balanced" selected="selected">Balanced</option>
+                          <option value="high">High</option>
+                          <option value="ultra">Ultra (Sharper)</option>
+                          </select>
+                        </div>
+                        <div class="recording-frame-row">
+                          <label for="recording-frame-scale">Zoom</label> <input id="recording-frame-scale" type="range" min="100" max="200" step="1" value="100"> <input id="recording-frame-scale-num" type="number" min="100" max="200" step="1" value="100">
+                        </div>
+                        <div class="recording-frame-row">
+                          <label for="recording-frame-offset-x">Offset X</label> <input id="recording-frame-offset-x" type="range" min="-400" max="400" step="1" value="0"> <input id="recording-frame-offset-x-num" type="number" min="-400" max="400" step="1" value="0">
+                        </div>
+                        <div class="recording-frame-row">
+                          <label for="recording-frame-offset-y">Offset Y</label> <input id="recording-frame-offset-y" type="range" min="-300" max="300" step="1" value="0"> <input id="recording-frame-offset-y-num" type="number" min="-300" max="300" step="1" value="0">
+                        </div>
+                        <div class="recording-frame-actions">
+                          <button class="btn" id="recording-frame-reset-btn" style="background:var(--btn-secondary);color:#fff;width:auto;margin:0">Reset Frame</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div id="recording-preview-card" class="recording-card">
+                    <h3>Recording Preview</h3>
+                    <div id="recording-preview-wrap" class="recording-preview-wrap">
+                      <video id="recording-game-video" class="recording-preview-video" autoplay playsinline muted>
+                      </video>
+                      <iframe id="recording-overlay-frame" class="recording-preview-overlay" title="Recording overlay preview">
+                      </iframe>
+                    </div>
+                    <div class="recording-note">Preview stacks your selected overlay over the game feed so you can validate the visual before clipping goals.</div>
+                  </div>
+                </div>
+              </div>
+              <div class="ms-subtab-pane" data-subtab-pane="overlays">
+                <div class="ms-overlays-intro">
+                  <h2 style="margin-bottom:4px">Launch an Overlay</h2>
+                </div>
+                <div class="overlay-controls">
+                  <button class="btn" id="upload-overlay-btn" style="background:var(--btn-success);color:#fff;width:auto;margin:0">Upload Overlay Folder</button> <button class="btn" id="open-overlays-folder-btn" style="background:var(--btn-secondary);color:#fff;width:auto;margin:0">Open Overlay Folder</button> <button class="btn" id="refresh-overlays-btn" style="background:var(--btn-primary);color:#fff;width:auto;margin:0">Refresh</button>
+                  <div class="overlay-hint">Overlay folder must include overlay.html</div>
+                </div>
+                <div id="overlays-error-banner" class="overlays-error-banner" style="display:none">
+                  <span id="overlays-error-text">Couldn't load overlays.</span> <button class="btn" id="overlays-retry-btn" type="button" style="background:var(--btn-primary);color:#fff;width:auto;margin:0">Retry</button>
+                </div>
+                <div class="overlay-grid ms-overlay-grid">
+                  <div class="overlay-card ms-overlay-card">
+                    <div class="overlay-card-title">Built-in Overlays</div>
+                    <p class="ms-overlay-card-desc">Overlays bundled with Rocket Cast, ready to go.</p>
+                    <select id="builtin-overlay-select" class="overlay-select">
+                      </select> <button class="btn" id="launch-builtin-overlay-btn" style="background:var(--btn-primary);color:#fff;width:auto;margin:0">Launch Built-in</button>
+                  </div>
+                  <div class="overlay-card ms-overlay-card">
+                    <div class="overlay-card-title">Uploaded Overlays</div>
+                    <p class="ms-overlay-card-desc">Custom overlays you've added yourself.</p>
+                    <select id="custom-overlay-select" class="overlay-select">
+                      </select> <button class="btn" id="launch-custom-overlay-btn" style="background:var(--btn-success);color:#fff;width:auto;margin:0">Launch Uploaded</button> <button class="btn" id="delete-custom-overlay-btn" style="background:var(--btn-danger);color:#fff;width:auto;margin-top:8px">Delete Overlay</button>
+                  </div>
+                </div>
+              </div>
+              </div>
             </div>
           </div>
         </div>
@@ -5386,27 +5876,33 @@ textarea:focus-visible{
               <div class="stats-actions">
                 <select id="stats-view-select" class="stats-view-select" aria-label="Stats view">
                   <option value="live">Live Stats</option>
-                  <option value="recording">Recording ★</option>
                   <option id="stats-history-option" value="history">Match History ★</option>
                   </select> <button class="btn" id="copy-stats-summary-btn" style="background:var(--btn-success);color:#fff;width:auto;margin:0">Copy Summary</button> <button class="btn" id="copy-stats-table-btn" style="background:var(--btn-primary);color:#fff;width:auto;margin:0">Copy Player Table</button>
               </div>
             </div>
             <div id="stats-view-live" class="stats-view-section active">
-              <div id="stats-overview" class="stats-grid">
+              <div id="stats-scoreboard" class="stats-scoreboard">
               </div>
-              <div class="stats-panel">
-                <h3>Team Percentage Breakdown</h3>
-                <div id="team-percentages">
+              <div class="stats-live-grid">
+                <div class="stats-live-main">
+                  <div id="stats-insights" class="stats-insight-row">
+                  </div>
+                  <div id="stats-teams" class="stats-team-compare">
+                  </div>
+                  <div class="stats-panel">
+                    <h3>Player Breakdown</h3>
+                    <div id="player-percentages">
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div class="stats-panel">
-                <h3>Player Percentage Table</h3>
-                <div id="player-percentages">
-                </div>
-              </div>
-              <div class="stats-panel">
-                <h3>Caster Talking Points</h3>
-                <div id="caster-points" class="talking-points">
+                <div class="stats-live-side">
+                  <div id="stats-overview" class="stats-leader-stack">
+                  </div>
+                  <div class="stats-panel stats-panel-points">
+                    <h3>Caster Talking Points</h3>
+                    <div id="caster-points" class="talking-points">
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -5421,106 +5917,6 @@ textarea:focus-visible{
                 </div>
                 <div id="match-history-list" class="history-series-list">
                   <div class="empty-state">Loading match history...</div>
-                </div>
-              </div>
-            </div>
-            <div id="stats-view-recording" class="stats-view-section">
-              <div class="recording-layout">
-                <div class="recording-card">
-                  <h3>Recorder</h3>
-                  <div id="recording-method-obs" class="recording-method-panel">
-                    <div class="recording-setting-row">
-                      <label for="obs-address-input">OBS WebSocket</label> <input id="obs-address-input" type="text" value="ws://127.0.0.1:4455">
-                    </div>
-                    <div class="recording-setting-row">
-                      <label for="obs-password-input">Password</label> <input id="obs-password-input" type="password" placeholder="optional">
-                    </div>
-                    <div class="recording-actions" style="margin-top:8px">
-                      <button class="btn" id="obs-connect-btn" style="background:var(--btn-primary);color:#fff;width:auto;margin:0">Connect OBS</button> <button class="btn" id="obs-setup-replay-buffer-btn" type="button" style="background:var(--btn-utility);color:#fff;width:auto;margin:0">Auto-Configure Replay Buffer</button> <button class="btn recording-method-help-btn" id="obs-help-btn" type="button">Help</button>
-                    </div>
-                    <ul class="recording-status-list" style="margin-top:8px">
-                      <li>
-                        <span>OBS</span> <strong id="obs-connection-status">Disconnected</strong>
-                      </li>
-                      <li>
-                        <span>Replay Buffer</span> <strong id="obs-replay-status">Stopped</strong>
-                      </li>
-                    </ul>
-                  </div>
-                  <div id="recording-method-internal" class="recording-method-panel" style="display:none">
-                    <div class="recording-actions">
-                      <button class="btn" id="recording-connect-game-btn" style="background:var(--btn-primary);color:#fff;width:auto;margin:0">Connect Rocket League Application</button> <button class="btn" id="recording-arm-buffer-btn" style="background:var(--btn-success);color:#fff;width:auto;margin:0">Start Auto Recorder</button> <button class="btn" id="recording-stop-btn" style="background:var(--btn-danger);color:#fff;width:auto;margin:0">Stop Recorder</button>
-                    </div>
-                    <ul class="recording-status-list">
-                      <li>
-                        <span>Active Match</span> <strong id="recording-active-match">None</strong>
-                      </li>
-                      <li>
-                        <span>Game Feed</span> <strong id="recording-game-feed">Disconnected</strong>
-                      </li>
-                      <li>
-                        <span>Capture</span> <strong id="recording-capture-format">--</strong>
-                      </li>
-                      <li>
-                        <span>Output</span> <strong id="recording-output-format">1920x1080 @ 60fps</strong>
-                      </li>
-                      <li>
-                        <span>Quality</span> <strong id="recording-output-quality-status">Balanced</strong>
-                      </li>
-                      <li>
-                        <span>Buffer</span> <strong id="recording-buffer-state">Not armed</strong>
-                      </li>
-                      <li>
-                        <span>Queued Goals</span> <strong id="recording-queued-goals">0</strong>
-                      </li>
-                      <li>
-                        <span>Last Upload</span> <strong id="recording-last-upload">--</strong>
-                      </li>
-                    </ul>
-                    <div class="recording-frame-editor">
-                      <div class="recording-setting-row">
-                        <label for="recording-output-fps">FPS</label> <select id="recording-output-fps">
-                        <option value="60" selected="selected">60 fps (Sharper)</option>
-                        <option value="30">30 fps (Smoother)</option>
-                        </select>
-                      </div>
-                      <div class="recording-setting-row">
-                        <label for="recording-output-resolution">Resolution</label> <select id="recording-output-resolution">
-                        <option value="1920x1080" selected="selected">1920x1080</option>
-                        <option value="1280x720">1280x720 (Lighter)</option>
-                        </select>
-                      </div>
-                      <div class="recording-setting-row">
-                        <label for="recording-output-quality-select">Quality</label> <select id="recording-output-quality-select">
-                        <option value="balanced" selected="selected">Balanced</option>
-                        <option value="high">High</option>
-                        <option value="ultra">Ultra (Sharper)</option>
-                        </select>
-                      </div>
-                      <div class="recording-frame-row">
-                        <label for="recording-frame-scale">Zoom</label> <input id="recording-frame-scale" type="range" min="100" max="200" step="1" value="100"> <input id="recording-frame-scale-num" type="number" min="100" max="200" step="1" value="100">
-                      </div>
-                      <div class="recording-frame-row">
-                        <label for="recording-frame-offset-x">Offset X</label> <input id="recording-frame-offset-x" type="range" min="-400" max="400" step="1" value="0"> <input id="recording-frame-offset-x-num" type="number" min="-400" max="400" step="1" value="0">
-                      </div>
-                      <div class="recording-frame-row">
-                        <label for="recording-frame-offset-y">Offset Y</label> <input id="recording-frame-offset-y" type="range" min="-300" max="300" step="1" value="0"> <input id="recording-frame-offset-y-num" type="number" min="-300" max="300" step="1" value="0">
-                      </div>
-                      <div class="recording-frame-actions">
-                        <button class="btn" id="recording-frame-reset-btn" style="background:var(--btn-secondary);color:#fff;width:auto;margin:0">Reset Frame</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div id="recording-preview-card" class="recording-card">
-                  <h3>Recording Preview</h3>
-                  <div id="recording-preview-wrap" class="recording-preview-wrap">
-                    <video id="recording-game-video" class="recording-preview-video" autoplay playsinline muted>
-                    </video>
-                    <iframe id="recording-overlay-frame" class="recording-preview-overlay" title="Recording overlay preview">
-                    </iframe>
-                  </div>
-                  <div class="recording-note">Preview stacks your selected overlay over the game feed so you can validate the visual before clipping goals.</div>
                 </div>
               </div>
             </div>
@@ -6044,6 +6440,7 @@ textarea:focus-visible{
             <li>Open OBS</li>
             <li>Go to <strong>Tools &rarr; WebSocket Server Settings</strong></li>
             <li>Check <strong>Enable WebSocket server</strong>, then <strong>Apply</strong></li>
+            <li>Disable authentication (uncheck the box) or enter your WebSocket password</li>
             <li>If you set a password there, enter it below (otherwise leave it blank)</li>
           </ol>
           <div class="welcome-auto-setup-panel">
@@ -6231,7 +6628,7 @@ textarea:focus-visible{
     var builderState = { activeLayout: null, dirty: false, items: [], selection: [] };
     var resolvedBracketPortLabel = "";
 
-let liveGame = null, lastGameStats = null, lastRlStatus = null;
+let liveGame = null, lastGameStats = null, lastRlStatus = null, lastLoggedRlStatusLabel = null;
 
 const recordingState = {
   gameStream: null,
@@ -6280,8 +6677,6 @@ const matchHistoryState = {
   seriesGroups: []
 }, STATS_VIEW_KEY = "rc-stats-view";
 
-let lastNonRecordingStatsView = "recording" === localStorage.getItem(STATS_VIEW_KEY) ? "live" : localStorage.getItem(STATS_VIEW_KEY) || "live";
-
 const fallbackSocket = {
   connected: !1,
   emit: () => {},
@@ -6291,13 +6686,20 @@ const fallbackSocket = {
   disconnect: () => {}
 }, panelSocket = (() => {
   const e = window.__rocketCastSocket;
-  return Boolean(e && "function" == typeof e.on && "function" == typeof e.emit && "object" == typeof e.io) ? e : "function" == typeof io ? io({
+  if (Boolean(e && "function" == typeof e.on && "function" == typeof e.emit && "object" == typeof e.io)) return e;
+  if ("function" != typeof io) return fallbackSocket;
+  // Publish this connection to window.__rocketCastSocket so renderer.js's
+  // own DOMContentLoaded init (which runs after this script, since it was
+  // deferred while the document was still loading) reuses this same socket
+  // instead of opening a second one -- one connection per tab, not two.
+  const socket = io({
     reconnection: !0,
     reconnectionAttempts: 1 / 0,
     reconnectionDelay: 500,
     reconnectionDelayMax: 3e3,
     timeout: 1e4
-  }) : fallbackSocket;
+  });
+  return window.__rocketCastSocket = socket, socket;
 })();
 
 function setRlRestartPromptVisible(e) {
@@ -6476,6 +6878,125 @@ function switchTab(e) {
   }) : window.scrollTo(0, 0);
 }
 
+// ---- Dashboard sub-tabs (Cameras / Toggles / Recording / Overlays) ----
+// A slim rail pinned to the right edge; hovering/focusing/clicking a tab
+// pops its content out to the left in a small flyout, which auto-hides on
+// mouse-out unless the lock button pins it open. Cameras and Recording are
+// hidden entirely unless the caster has Rocket Cast + or is an admin.
+const MS_SUBTAB_ORDER_KEY = "rc-ms-subtab-order", MS_SUBTAB_LOCKED_KEY = "rc-ms-subtab-locked", MS_SUBTAB_LOCKED_TAB_KEY = "rc-ms-subtab-locked-tab", MS_SUBTAB_GATED = new Set([ "cameras", "recording" ]);
+let msRecordingSubtabOpenedOnce = !1, msFlyoutCloseTimer = null;
+
+function msSubtabHasAccess(name) {
+  return !MS_SUBTAB_GATED.has(name) || Boolean(("function" == typeof hasPremiumAccess && hasPremiumAccess()) || ("function" == typeof isCurrentUserAdmin && isCurrentUserAdmin()));
+}
+
+// Called whenever premium/admin state changes (see renderPremiumPanel in
+// panel-plus.js) so the gated tabs appear/disappear immediately rather than
+// only after the next reload.
+function updateMsSubtabAccessVisibility() {
+  const rail = document.getElementById("ms-subtab-rail");
+  if (!rail) return;
+  let activeLostAccess = !1;
+  rail.querySelectorAll(".ms-subtab-btn").forEach(btn => {
+    const name = btn.getAttribute("data-subtab"), allowed = msSubtabHasAccess(name);
+    btn.hidden = !allowed, !allowed && btn.classList.contains("active") && (activeLostAccess = !0);
+  });
+  activeLostAccess && closeMsFlyout(!0);
+}
+
+function applyMsSubtabOrder() {
+  const rail = document.getElementById("ms-subtab-rail");
+  if (!rail) return;
+  let order;
+  try {
+    order = JSON.parse(localStorage.getItem(MS_SUBTAB_ORDER_KEY) || "null");
+  } catch {
+    order = null;
+  }
+  if (!Array.isArray(order) || !order.length) return;
+  order.forEach(name => {
+    const btn = rail.querySelector(`.ms-subtab-btn[data-subtab="${name}"]`);
+    btn && rail.appendChild(btn);
+  });
+}
+
+function saveMsSubtabOrder() {
+  const rail = document.getElementById("ms-subtab-rail");
+  if (!rail) return;
+  const order = Array.from(rail.querySelectorAll(".ms-subtab-btn")).map(btn => btn.getAttribute("data-subtab"));
+  localStorage.setItem(MS_SUBTAB_ORDER_KEY, JSON.stringify(order));
+}
+
+function isMsFlyoutLocked() {
+  const lockBtn = document.getElementById("ms-subtab-lock-btn");
+  return Boolean(lockBtn && "true" === lockBtn.getAttribute("aria-pressed"));
+}
+
+function setMsFlyoutLocked(locked) {
+  const lockBtn = document.getElementById("ms-subtab-lock-btn");
+  lockBtn && (lockBtn.setAttribute("aria-pressed", locked ? "true" : "false"), lockBtn.classList.toggle("locked", locked),
+  lockBtn.title = locked ? "Unlock (closes on mouse-out again)" : "Lock this panel open"),
+  localStorage.setItem(MS_SUBTAB_LOCKED_KEY, locked ? "1" : "0");
+}
+
+function openMsFlyout(name) {
+  if (!msSubtabHasAccess(name)) return;
+  const rail = document.getElementById("ms-subtab-rail"), flyout = document.getElementById("ms-subtab-flyout"), title = document.getElementById("ms-subtab-flyout-title");
+  if (!rail || !flyout) return;
+  clearTimeout(msFlyoutCloseTimer);
+  const btn = rail.querySelector(`.ms-subtab-btn[data-subtab="${name}"]`);
+  if (!btn) return;
+  rail.querySelectorAll(".ms-subtab-btn").forEach(entry => entry.classList.toggle("active", entry === btn));
+  flyout.querySelectorAll(".ms-subtab-pane").forEach(pane => {
+    const isTarget = pane.getAttribute("data-subtab-pane") === name;
+    pane.classList.remove("active"), isTarget && (
+      // Force a reflow so re-activating the same pane replays the pop
+      // animation instead of the class toggle being a no-op.
+      void pane.offsetWidth, pane.classList.add("active")
+    );
+  }), title && (title.textContent = btn.querySelector(".ms-subtab-btn-label")?.textContent || name),
+  flyout.classList.add("open"), isMsFlyoutLocked() && localStorage.setItem(MS_SUBTAB_LOCKED_TAB_KEY, name),
+  "recording" === name ? (startRecordingMatchPolling(), !msRecordingSubtabOpenedOnce && (msRecordingSubtabOpenedOnce = !0, maybeShowRecordingMethodChooser())) : stopRecordingMatchPolling();
+}
+
+function closeMsFlyout(force = !1) {
+  const flyout = document.getElementById("ms-subtab-flyout");
+  flyout && (force || !isMsFlyoutLocked()) && (flyout.classList.remove("open"), stopRecordingMatchPolling());
+}
+
+function scheduleMsFlyoutClose() {
+  clearTimeout(msFlyoutCloseTimer), msFlyoutCloseTimer = setTimeout(() => closeMsFlyout(), 260);
+}
+
+function initMsSubtabs() {
+  const rail = document.getElementById("ms-subtab-rail"), flyout = document.getElementById("ms-subtab-flyout"), lockBtn = document.getElementById("ms-subtab-lock-btn");
+  if (!rail || !flyout) return;
+  applyMsSubtabOrder(), updateMsSubtabAccessVisibility();
+  let dragged = null;
+  rail.querySelectorAll(".ms-subtab-btn").forEach(btn => {
+    const open = () => openMsFlyout(btn.getAttribute("data-subtab"));
+    btn.addEventListener("mouseenter", open), btn.addEventListener("focus", open), btn.addEventListener("click", open),
+    btn.addEventListener("dragstart", () => {
+      dragged = btn, btn.classList.add("ms-subtab-dragging");
+    }), btn.addEventListener("dragend", () => {
+      dragged = null, btn.classList.remove("ms-subtab-dragging"), saveMsSubtabOrder();
+    }), btn.addEventListener("dragover", e => {
+      if (e.preventDefault(), !dragged || dragged === btn) return;
+      const rect = btn.getBoundingClientRect(), before = e.clientY < rect.top + rect.height / 2;
+      rail.insertBefore(dragged, before ? btn : btn.nextSibling);
+    });
+  });
+  rail.addEventListener("mouseleave", scheduleMsFlyoutClose), rail.addEventListener("focusout", scheduleMsFlyoutClose),
+  flyout.addEventListener("mouseenter", () => clearTimeout(msFlyoutCloseTimer)),
+  flyout.addEventListener("mouseleave", scheduleMsFlyoutClose), flyout.addEventListener("focusout", scheduleMsFlyoutClose),
+  lockBtn && lockBtn.addEventListener("click", () => setMsFlyoutLocked(!isMsFlyoutLocked()));
+  if ("1" === localStorage.getItem(MS_SUBTAB_LOCKED_KEY)) {
+    setMsFlyoutLocked(!0);
+    const savedTab = localStorage.getItem(MS_SUBTAB_LOCKED_TAB_KEY);
+    savedTab && rail.querySelector(`.ms-subtab-btn[data-subtab="${savedTab}"]`) && openMsFlyout(savedTab);
+  }
+}
+
 function applyRecordingMethodUi() {
   const e = document.getElementById("recording-method-obs"), t = document.getElementById("recording-method-internal"), o = document.getElementById("recording-preview-card");
   document.querySelectorAll("[data-recording-method-tab]").forEach(e => {
@@ -6494,7 +7015,12 @@ function maybeShowRecordingMethodChooser() {
 
 function closeRecordingMethodChooser(e = !1) {
   const t = document.getElementById("recording-method-chooser");
-  t && (t.classList.remove("show"), t.setAttribute("aria-hidden", "true"), e && setStatsView(lastNonRecordingStatsView || "live"));
+  t && (t.classList.remove("show"), t.setAttribute("aria-hidden", "true"));
+}
+
+function setStatusToneText(id, text, isGood) {
+  const el = document.getElementById(id);
+  el && (el.textContent = text, el.classList.remove("status-good", "status-bad"), el.classList.add(isGood ? "status-good" : "status-bad"));
 }
 
 async function loadRecordingIntegrationStatus() {
@@ -6503,10 +7029,8 @@ async function loadRecordingIntegrationStatus() {
     if (!e.ok) return;
     const t = await e.json();
     recorderUiState.obs.connected = Boolean(t?.obs?.connected), recorderUiState.obs.replayBufferRunning = Boolean(t?.obs?.replayBufferRunning);
-    const o = document.getElementById("obs-connection-status");
-    o && (o.textContent = recorderUiState.obs.connected ? "Connected" : "Disconnected");
-    const a = document.getElementById("obs-replay-status");
-    a && (a.textContent = recorderUiState.obs.replayBufferRunning ? "Running" : "Stopped"), 
+    setStatusToneText("obs-connection-status", recorderUiState.obs.connected ? "Connected" : "Disconnected", recorderUiState.obs.connected);
+    setStatusToneText("obs-replay-status", recorderUiState.obs.replayBufferRunning ? "Running" : "Stopped", recorderUiState.obs.replayBufferRunning),
     syncObsRecordToggleUi(), applyRecordingMethodUi();
   } catch {}
 }
@@ -7325,12 +7849,17 @@ let serversStatusPollTimer = null, isGuestModeActive = !1, isGuestAuthenticated 
 
 function openServersModal() {
   const e = document.getElementById("servers-modal-backdrop");
-  e && (e.classList.add("show"), e.setAttribute("aria-hidden", "false")), refreshServersStatus();
+  e && (e.classList.add("show"), e.setAttribute("aria-hidden", "false")), refreshServersStatus(),
+  // Only poll while the modal is actually up on screen -- there is no
+  // reason to hit /api/lan-server/status every 5s for the whole session
+  // when almost nobody has this modal open at any given moment.
+  serversStatusPollTimer && clearInterval(serversStatusPollTimer), serversStatusPollTimer = setInterval(refreshServersStatus, 5e3);
 }
 
 function closeServersModal() {
   const e = document.getElementById("servers-modal-backdrop");
-  e && (e.classList.remove("show"), e.setAttribute("aria-hidden", "true"));
+  e && (e.classList.remove("show"), e.setAttribute("aria-hidden", "true")), serversStatusPollTimer && (clearInterval(serversStatusPollTimer),
+  serversStatusPollTimer = null);
 }
 
 function setServersTab(tab) {
@@ -7439,8 +7968,7 @@ function initializeServers() {
     } finally {
       setButtonBusy(connectBtn, !1);
     }
-  }), refreshServersStatus(), serversStatusPollTimer && clearInterval(serversStatusPollTimer),
-  serversStatusPollTimer = setInterval(refreshServersStatus, 5e3);
+  }), refreshServersStatus();
 }
 
 function setObsSetupState(e, t) {
@@ -7612,6 +8140,7 @@ async function resetMediaStorageFolder() {
   }, "Moving...");
 }
 
+
 async function loadHelpDownloads() {
   const e = document.getElementById("help-download-pill");
   if (e) try {
@@ -7684,7 +8213,7 @@ async function deleteSelectedCustomOverlay() {
   if (!t || "custom" !== t.source) return void showPanelToast("Only uploaded overlays can be deleted", !0);
   if (!window.confirm(`Delete uploaded overlay "${t.name}"? This cannot be undone.`)) return;
   const o = document.getElementById("delete-custom-overlay-btn");
-  deleteCustomOverlayInFlight = !0, o && (o.disabled = !0, o.style.opacity = "0.6", 
+  deleteCustomOverlayInFlight = !0, o && (o.disabled = !0, o.style.opacity = "0.6",
   o.style.cursor = "wait");
   try {
     const o = await window.rocketCast.deleteCustomOverlay(e.value);
@@ -7762,56 +8291,56 @@ function fillOverlaySelect(e, t, o) {
     }
     t.forEach(e => {
       const t = document.createElement("option");
-      t.value = e.path, t.textContent = `${e.name} (${e.path})`, a.appendChild(t);
+      t.value = e.path, t.textContent = e.name === e.path ? e.name : `${e.name} (${e.path})`, a.appendChild(t);
     }), a.disabled = !1;
+  }
+}
+
+function setOverlayButtonEnabled(id, enabled) {
+  const el = document.getElementById(id);
+  el && (el.disabled = !enabled, el.style.opacity = enabled ? "1" : "0.6", el.style.cursor = enabled ? "pointer" : "not-allowed");
+}
+
+function setOverlayErrorBanner(show, message) {
+  const banner = document.getElementById("overlays-error-banner");
+  banner && (banner.style.display = show ? "flex" : "none");
+  if (show) {
+    const text = document.getElementById("overlays-error-text");
+    text && (text.textContent = message);
   }
 }
 
 async function loadOverlays() {
   overlaysByPath.clear();
-  const e = document.getElementById("overlays-error-banner");
   try {
-    const t = await fetchOverlayList(), o = Array.isArray(t) ? t : [];
+    const t = await fetchOverlayList(), rawOverlayList = Array.isArray(t) ? t : [],
+    // The Bracket overlay has no caster behind it while the Bracket tab is
+    // withheld from the nav (see RC_PLUS_TABS in panel-plus.js) -- hide it
+    // from the picker too so nobody launches a graphic nothing will feed.
+    bracketTabAvailable = !!document.getElementById("bracket"), o = bracketTabAvailable ? rawOverlayList : rawOverlayList.filter(e => "bracket" !== String(e?.path || "").toLowerCase());
     o.forEach(e => {
       overlaysByPath.set(e.path, e);
     });
     const a = o.filter(e => "custom" !== e.source).sort((e, t) => e.name.localeCompare(t.name)), r = o.filter(e => "custom" === e.source).sort((e, t) => e.name.localeCompare(t.name));
-    fillOverlaySelect("builtin-overlay-select", a, "No built-in overlays found"), fillOverlaySelect("custom-overlay-select", r, "No uploaded overlays found"), 
-    populateKeybindOverlayTargetSelect(o);
-    const n = document.getElementById("launch-builtin-overlay-btn");
-    n && (n.disabled = 0 === a.length, n.style.opacity = 0 === a.length ? "0.6" : "1", 
-    n.style.cursor = 0 === a.length ? "not-allowed" : "pointer");
-    const i = document.getElementById("launch-custom-overlay-btn");
-    i && (i.disabled = 0 === r.length, i.style.opacity = 0 === r.length ? "0.6" : "1", 
-    i.style.cursor = 0 === r.length ? "not-allowed" : "pointer");
-    const s = document.getElementById("delete-custom-overlay-btn");
-    s && (s.disabled = 0 === r.length, s.style.opacity = 0 === r.length ? "0.6" : "1", 
-    s.style.cursor = 0 === r.length ? "not-allowed" : "pointer"), await refreshActiveOverlayForRecording(), 
-    e && (e.style.display = "none"), refreshQuickLaunchButton();
+    fillOverlaySelect("builtin-overlay-select", a, "No built-in overlays found"), fillOverlaySelect("custom-overlay-select", r, "No uploaded overlays found"),
+    setOverlayButtonEnabled("launch-builtin-overlay-btn", a.length > 0), setOverlayButtonEnabled("launch-custom-overlay-btn", r.length > 0),
+    setOverlayButtonEnabled("delete-custom-overlay-btn", r.length > 0), setOverlayErrorBanner(!1),
+    populateKeybindOverlayTargetSelect(o), await refreshActiveOverlayForRecording(), refreshQuickLaunchButton();
   } catch (t) {
-    fillOverlaySelect("builtin-overlay-select", [], "Failed to load built-ins"), fillOverlaySelect("custom-overlay-select", [], "Failed to load uploads"), 
-    populateKeybindOverlayTargetSelect([]);
-    const o = document.getElementById("launch-builtin-overlay-btn");
-    o && (o.disabled = !0, o.style.opacity = "0.6", o.style.cursor = "not-allowed");
-    const a = document.getElementById("launch-custom-overlay-btn");
-    a && (a.disabled = !0, a.style.opacity = "0.6", a.style.cursor = "not-allowed");
-    const r = document.getElementById("delete-custom-overlay-btn");
-    if (r && (r.disabled = !0, r.style.opacity = "0.6", r.style.cursor = "not-allowed"), 
-    showPanelToast(t?.message || "Failed to load overlays", !0), e) {
-      e.style.display = "flex";
-      const o = document.getElementById("overlays-error-text");
-      o && (o.textContent = t?.message ? `Couldn't load overlays: ${t.message}` : "Couldn't load overlays.");
-    }
+    fillOverlaySelect("builtin-overlay-select", [], "Failed to load built-ins"), fillOverlaySelect("custom-overlay-select", [], "Failed to load uploads"),
+    setOverlayButtonEnabled("launch-builtin-overlay-btn", !1), setOverlayButtonEnabled("launch-custom-overlay-btn", !1),
+    setOverlayButtonEnabled("delete-custom-overlay-btn", !1), setOverlayErrorBanner(!0, t?.message ? `Couldn't load overlays: ${t.message}` : "Couldn't load overlays."),
+    populateKeybindOverlayTargetSelect([]), showPanelToast(t?.message || "Failed to load overlays", !0);
   }
 }
 
-async function retryLoadOverlays() {
-  const e = document.getElementById("overlays-retry-btn");
-  setButtonBusy(e, !0, "Retrying...");
+async function retryLoadOverlays(e) {
+  const t = e?.currentTarget instanceof HTMLElement ? e.currentTarget : document.getElementById("overlays-retry-btn");
+  setButtonBusy(t, !0, "Retrying...");
   try {
     await loadOverlays();
   } finally {
-    setButtonBusy(e, !1);
+    setButtonBusy(t, !1);
   }
 }
 
@@ -8362,7 +8891,12 @@ function computeStatsSnapshot() {
     0: e.filter(e => 0 === e.TeamNum),
     1: e.filter(e => 1 === e.TeamNum)
   }, a = [ 0, 1 ].map(e => {
-    const a = o[e], r = t.find(t => t.TeamNum === e) || {}, n = Number.isFinite(Number(r.Score)) ? Number(r.Score) : a.reduce((e, t) => e + (t.Goals || 0), 0), i = a.reduce((e, t) => e + (t.Assists || 0), 0), s = a.reduce((e, t) => e + (t.Saves || 0), 0), d = a.reduce((e, t) => e + (t.Shots || 0), 0), l = a.reduce((e, t) => e + (t.Demos || 0), 0), c = a.reduce((e, t) => e + (t.Score || 0), 0);
+    const a = o[e], r = t.find(t => t.TeamNum === e) || {}, n = Number.isFinite(Number(r.Score)) ? Number(r.Score) : a.reduce((e, t) => e + (t.Goals || 0), 0), i = a.reduce((e, t) => e + (t.Assists || 0), 0), s = a.reduce((e, t) => e + (t.Saves || 0), 0), d = a.reduce((e, t) => e + (t.Shots || 0), 0), l = a.reduce((e, t) => e + (t.Demos || 0), 0), c = a.reduce((e, t) => e + (t.Score || 0), 0),
+      // Boost isn't in the goals/assists/saves family the rest of the app
+      // already tracked -- it's a genuinely new signal for casters (who's
+      // sitting on resources vs. running empty) that the live payload was
+      // carrying all along and nothing surfaced.
+      boostAvg = a.length ? Math.round(a.reduce((e, t) => e + (Number(t.Boost) || 0), 0) / a.length) : 0;
     return {
       teamNum: e,
       name: getTeamName(e),
@@ -8371,7 +8905,9 @@ function computeStatsSnapshot() {
       saves: s,
       shots: d,
       demos: l,
-      score: c
+      score: c,
+      boostAvg: boostAvg,
+      shootingPct: pct(n, d)
     };
   }), r = {
     goals: a[0].goals + a[1].goals,
@@ -8385,12 +8921,14 @@ function computeStatsSnapshot() {
     return {
       name: e.Name || "Unknown",
       teamName: t.name,
+      teamNum: e.TeamNum,
       goals: e.Goals || 0,
       assists: e.Assists || 0,
       saves: e.Saves || 0,
       shots: e.Shots || 0,
       demos: e.Demos || 0,
       score: e.Score || 0,
+      boost: Math.round(Number(e.Boost) || 0),
       goalSharePct: pct(e.Goals || 0, t.goals),
       assistSharePct: pct(e.Assists || 0, t.assists),
       saveSharePct: pct(e.Saves || 0, t.saves),
@@ -8405,13 +8943,36 @@ function computeStatsSnapshot() {
     saves: [ ...n ].sort((e, t) => t.saves - e.saves)[0],
     demos: [ ...n ].sort((e, t) => t.demos - e.demos)[0],
     score: [ ...n ].sort((e, t) => t.score - e.score)[0],
-    participation: [ ...n ].sort((e, t) => t.participationPct - e.participationPct)[0]
-  };
+    participation: [ ...n ].sort((e, t) => t.participationPct - e.participationPct)[0],
+    mvp: [ ...n ].sort((e, t) => t.scoreSharePct - e.scoreSharePct)[0]
+  }, [blue, orange] = a, shotDiff = blue.shots - orange.shots, demoDiff = blue.demos - orange.demos, boostDiff = blue.boostAvg - orange.boostAvg, goalDiff = blue.goals - orange.goals, absGoalDiff = Math.abs(goalDiff),
+    game = liveGame.Game || {}, ball = game.Ball || {};
   return {
     teamStats: a,
     totals: r,
     playerRows: n,
-    leaders: i
+    leaders: i,
+    game: {
+      timeSeconds: Number(game.TimeSeconds) || 0,
+      isOT: Boolean(game.bOvertime),
+      isReplay: Boolean(game.bReplay),
+      ballSpeed: Math.round(Number(ball.Speed) || 0)
+    },
+    // Everything below is derived, not just relayed -- shot/boost/demo
+    // edges and a plain-language read on how tight the scoreline is, the
+    // kind of framing a caster reaches for between plays.
+    insights: {
+      shotDiff: shotDiff,
+      shotLeader: 0 === shotDiff ? null : shotDiff > 0 ? blue : orange,
+      demoDiff: demoDiff,
+      demoLeader: 0 === demoDiff ? null : demoDiff > 0 ? blue : orange,
+      boostDiff: boostDiff,
+      boostLeader: 0 === boostDiff ? null : boostDiff > 0 ? blue : orange,
+      combinedShootingPct: pct(r.goals, r.shots),
+      goalDiff: goalDiff,
+      leadTeam: 0 === goalDiff ? null : goalDiff > 0 ? blue : orange,
+      gameState: 0 === absGoalDiff ? "even" : absGoalDiff <= 2 ? "close" : "blowout"
+    }
   };
 }
 
@@ -8476,26 +9037,77 @@ function shouldPaintStatsHub() {
   return !(now - lastStatsHubPaintAt < STATS_HUB_PAINT_THROTTLE_MS) && (lastStatsHubPaintAt = now, !0);
 }
 
+// Mirrors the overlay's own clock formatter (fmtTime in overlays/*/overlay.html)
+// -- non-OT is a plain countdown, OT is an elapsed up-counter with a "+".
+function fmtClock(seconds, isOT) {
+  if (isOT) {
+    const abs = Math.abs(seconds);
+    return "+" + Math.floor(abs / 60) + ":" + String(abs % 60).padStart(2, "0");
+  }
+  const clamped = Math.max(seconds, 0);
+  return Math.floor(clamped / 60) + ":" + String(clamped % 60).padStart(2, "0");
+}
+
 function renderStatsHub() {
   const e = computeStatsSnapshot();
   lastGameStats = e;
-  const t = document.getElementById("stats-overview"), o = document.getElementById("team-percentages"), a = document.getElementById("player-percentages"), r = document.getElementById("caster-points");
-  if (!e) return t.innerHTML = '<div class="stats-card"><div class="empty-state">Waiting for live match data...</div></div>', 
-  o.innerHTML = '<div class="empty-state">No team stats yet.</div>', a.innerHTML = '<div class="empty-state">No player stats yet.</div>', 
+  const scoreboardEl = document.getElementById("stats-scoreboard"), insightsEl = document.getElementById("stats-insights"), teamsEl = document.getElementById("stats-teams"), t = document.getElementById("stats-overview"), a = document.getElementById("player-percentages"), r = document.getElementById("caster-points");
+  if (!e) return scoreboardEl.innerHTML = '<div class="empty-state" style="padding:16px">Waiting for live match data...</div>',
+  insightsEl.innerHTML = "", teamsEl.innerHTML = '<div class="empty-state">No team stats yet.</div>',
+  t.innerHTML = '<div class="stats-card"><div class="empty-state">Waiting for live match data...</div></div>',
+  a.innerHTML = '<div class="empty-state">No player stats yet.</div>',
   void (r.innerHTML = '<div class="point">Start a match to generate caster talking points.</div>');
-  const n = e.leaders, i = e.totals;
+  const n = e.leaders, i = e.totals, gi = e.insights, gs = e.game, blueColor = document.getElementById("blue-color")?.value || "#21afd7", orangeColor = document.getElementById("orange-color")?.value || "#fd5b00";
   // Player/team display names come from in-game data (and, over a LAN
   // co-stream, can be relayed from another machine) -- none of it is
   // trustworthy enough to drop straight into innerHTML unescaped, the way
   // this whole stats hub used to.
-  t.innerHTML = `\n                <div class="stats-card">\n                    <h3>Top Scorer</h3>\n                    <div class="stats-kpi"><span>Player</span><strong>${escapeHtml(n.goals?.name) || "N/A"}</strong></div>\n                    <div class="stats-kpi"><span>Goals</span><strong>${n.goals?.goals || 0}</strong></div>\n                    <div class="stats-kpi"><span>Goal Share</span><strong>${n.goals ? fmtPct(n.goals.goalSharePct) : "0.0%"}</strong></div>\n                </div>\n                <div class="stats-card">\n                    <h3>Playmaker</h3>\n                    <div class="stats-kpi"><span>Player</span><strong>${escapeHtml(n.assists?.name) || "N/A"}</strong></div>\n                    <div class="stats-kpi"><span>Assists</span><strong>${n.assists?.assists || 0}</strong></div>\n                    <div class="stats-kpi"><span>Participation</span><strong>${n.participation ? fmtPct(n.participation.participationPct) : "0.0%"}</strong></div>\n                </div>\n                <div class="stats-card">\n                    <h3>Defense</h3>\n                    <div class="stats-kpi"><span>Player</span><strong>${escapeHtml(n.saves?.name) || "N/A"}</strong></div>\n                    <div class="stats-kpi"><span>Saves</span><strong>${n.saves?.saves || 0}</strong></div>\n                    <div class="stats-kpi"><span>Total Saves</span><strong>${i.saves}</strong></div>\n                </div>\n                <div class="stats-card">\n                    <h3>Physical Play</h3>\n                    <div class="stats-kpi"><span>Demo Leader</span><strong>${escapeHtml(n.demos?.name) || "N/A"}</strong></div>\n                    <div class="stats-kpi"><span>Demos</span><strong>${n.demos?.demos || 0}</strong></div>\n                    <div class="stats-kpi"><span>Total Demos</span><strong>${i.demos}</strong></div>\n                </div>\n            `;
-  let s = '<table class="percent-table"><thead><tr><th>Metric</th><th>' + escapeHtml(e.teamStats[0].name) + "</th><th>Blue Share</th><th>" + escapeHtml(e.teamStats[1].name) + "</th><th>Orange Share</th></tr></thead><tbody>";
-  [ [ "Goals", "goals" ], [ "Shots", "shots" ], [ "Assists", "assists" ], [ "Saves", "saves" ], [ "Demos", "demos" ], [ "Score", "score" ] ].forEach(([t, o]) => {
-    const a = e.teamStats[0][o] || 0, r = e.teamStats[1][o] || 0, n = e.totals[o] || 0, i = pct(a, n), d = pct(r, n);
-    s += "<tr><td>" + t + "</td><td>" + a + "</td><td>" + fmtPct(i) + '<div class="bar-wrap"><div class="bar" style="width:' + Math.min(i, 100).toFixed(1) + '%"></div></div></td><td>' + r + "</td><td>" + fmtPct(d) + '<div class="bar-wrap"><div class="bar" style="width:' + Math.min(d, 100).toFixed(1) + '%"></div></div></td></tr>';
-  }), s += "</tbody></table>", o.innerHTML = '<div class="table-scroll">' + s + "</div>";
-  const d = e.playerRows.map(e => "<tr><td>" + escapeHtml(e.name) + "</td><td>" + escapeHtml(e.teamName) + "</td><td>" + fmtPct(e.goalSharePct) + "</td><td>" + fmtPct(e.assistSharePct) + "</td><td>" + fmtPct(e.saveSharePct) + "</td><td>" + fmtPct(e.shotSharePct) + "</td><td>" + fmtPct(e.scoreSharePct) + "</td><td>" + fmtPct(e.shootingPct) + "</td><td>" + fmtPct(e.participationPct) + "</td></tr>").join("");
-  a.innerHTML = '<div class="table-scroll"><table class="percent-table"><thead><tr><th>Player</th><th>Team</th><th>Goal Share</th><th>Assist Share</th><th>Save Share</th><th>Shot Share</th><th>Score Share</th><th>Shooting %</th><th>Participation %</th></tr></thead><tbody>' + d + "</tbody></table></div>";
+  const statusLabel = gs.isReplay ? "REPLAY" : gs.isOT ? "● OVERTIME" : "● LIVE", statusClass = gs.isReplay ? "is-replay" : gs.isOT ? "is-ot" : "";
+  scoreboardEl.innerHTML = `
+    <div class="stats-scoreboard-team blue">
+      <span class="stats-scoreboard-color" style="background:${escapeHtml(blueColor)}"></span>
+      <span class="stats-scoreboard-name">${escapeHtml(e.teamStats[0].name)}</span>
+      <span class="stats-scoreboard-score">${e.teamStats[0].goals}</span>
+    </div>
+    <div class="stats-scoreboard-mid">
+      <span class="stats-scoreboard-clock">${escapeHtml(fmtClock(gs.timeSeconds, gs.isOT))}</span>
+      <span class="stats-scoreboard-status ${statusClass}">${escapeHtml(statusLabel)}</span>
+    </div>
+    <div class="stats-scoreboard-team orange">
+      <span class="stats-scoreboard-score">${e.teamStats[1].goals}</span>
+      <span class="stats-scoreboard-name">${escapeHtml(e.teamStats[1].name)}</span>
+      <span class="stats-scoreboard-color" style="background:${escapeHtml(orangeColor)}"></span>
+    </div>`;
+  // Insight tiles: derived reads on the game state (edges, conversion,
+  // physicality) rather than raw counters -- the framing a caster reaches
+  // for between plays, not just a bigger stat dump.
+  const gameStateLabel = { even: "Even Game", close: "Close Game", blowout: "Blowout" }[gi.gameState] || "Even Game",
+    gameStateSub = 0 === gi.goalDiff ? "Tied up" : `${gi.leadTeam.name} +${Math.abs(gi.goalDiff)}`,
+    insightTiles = [
+      [ "Game State", gameStateLabel, gameStateSub ],
+      [ "Shot Conversion", fmtPct(gi.combinedShootingPct), `${i.goals}/${i.shots} shots` ],
+      [ "Shot Edge", gi.shotLeader ? gi.shotLeader.name : "Even", gi.shotLeader ? `+${Math.abs(gi.shotDiff)} shots` : "No advantage" ],
+      [ "Boost Edge", gi.boostLeader ? gi.boostLeader.name : "Even", gi.boostLeader ? `+${Math.abs(gi.boostDiff)}% avg` : "No advantage" ],
+      [ "Physical Play", gi.demoLeader ? gi.demoLeader.name : "Even", gi.demoLeader ? `+${Math.abs(gi.demoDiff)} demos` : `${i.demos} total` ],
+      [ "Ball Speed", gs.ballSpeed > 0 ? gs.ballSpeed + " KPH" : "--", "Last tracked touch" ]
+    ];
+  insightsEl.innerHTML = insightTiles.map(([label, value, sub]) => `<div class="stats-insight-tile"><div class="stats-insight-label">${escapeHtml(label)}</div><div class="stats-insight-value">${escapeHtml(value)}</div><div class="stats-insight-sub">${escapeHtml(sub)}</div></div>`).join("");
+  // Head-to-head team cards: count stats show this team's share of the
+  // two-team total as the bar fill, rate stats (shooting%, boost) show the
+  // raw percentage -- both scaled the same 0-100 way so the bars stay
+  // visually comparable.
+  const teamStatRow = (label, valueLabel, barPct, color) => `<div class="stats-team-stat-row"><span class="stats-team-stat-label">${escapeHtml(label)}</span><span class="stats-team-stat-bar"><span class="stats-team-stat-bar-fill" style="width:${Math.min(100, Math.max(0, barPct)).toFixed(1)}%;background:${escapeHtml(color)}"></span></span><span class="stats-team-stat-value">${escapeHtml(valueLabel)}</span></div>`,
+    countStatKeys = [ [ "Score", "score" ], [ "Goals", "goals" ], [ "Shots", "shots" ], [ "Assists", "assists" ], [ "Saves", "saves" ], [ "Demos", "demos" ] ];
+  teamsEl.innerHTML = [ e.teamStats[0], e.teamStats[1] ].map((team, idx) => {
+    const color = 0 === idx ? blueColor : orangeColor, countRows = countStatKeys.map(([label, key]) => teamStatRow(label, String(team[key] || 0), pct(team[key] || 0, i[key] || 0), color)).join(""), rateRows = teamStatRow("Shooting %", fmtPct(team.shootingPct), team.shootingPct, color) + teamStatRow("Avg Boost", team.boostAvg + "%", team.boostAvg, color);
+    return `<div class="stats-team-card" style="border-top-color:${escapeHtml(color)}"><h4 style="color:${escapeHtml(color)}">${escapeHtml(team.name)}</h4>${countRows}${rateRows}</div>`;
+  }).join("");
+  // Player-of-the-match sits above the existing leader cards -- same share
+  // math the player table already computes (scoreSharePct), just given
+  // top billing instead of buried in a table column.
+  t.innerHTML = `\n                <div class="stats-card is-mvp">\n                    <h3>Player of the Match</h3>\n                    <div class="stats-kpi"><span>Player</span><strong>${escapeHtml(n.mvp?.name) || "N/A"}</strong></div>\n                    <div class="stats-kpi"><span>Score Share</span><strong>${n.mvp ? fmtPct(n.mvp.scoreSharePct) : "0.0%"}</strong></div>\n                    <div class="stats-kpi"><span>Team</span><strong>${escapeHtml(n.mvp?.teamName) || "N/A"}</strong></div>\n                </div>\n                <div class="stats-card">\n                    <h3>Top Scorer</h3>\n                    <div class="stats-kpi"><span>Player</span><strong>${escapeHtml(n.goals?.name) || "N/A"}</strong></div>\n                    <div class="stats-kpi"><span>Goals</span><strong>${n.goals?.goals || 0}</strong></div>\n                    <div class="stats-kpi"><span>Goal Share</span><strong>${n.goals ? fmtPct(n.goals.goalSharePct) : "0.0%"}</strong></div>\n                </div>\n                <div class="stats-card">\n                    <h3>Playmaker</h3>\n                    <div class="stats-kpi"><span>Player</span><strong>${escapeHtml(n.assists?.name) || "N/A"}</strong></div>\n                    <div class="stats-kpi"><span>Assists</span><strong>${n.assists?.assists || 0}</strong></div>\n                    <div class="stats-kpi"><span>Participation</span><strong>${n.participation ? fmtPct(n.participation.participationPct) : "0.0%"}</strong></div>\n                </div>\n                <div class="stats-card">\n                    <h3>Defense</h3>\n                    <div class="stats-kpi"><span>Player</span><strong>${escapeHtml(n.saves?.name) || "N/A"}</strong></div>\n                    <div class="stats-kpi"><span>Saves</span><strong>${n.saves?.saves || 0}</strong></div>\n                    <div class="stats-kpi"><span>Total Saves</span><strong>${i.saves}</strong></div>\n                </div>\n                <div class="stats-card">\n                    <h3>Physical Play</h3>\n                    <div class="stats-kpi"><span>Demo Leader</span><strong>${escapeHtml(n.demos?.name) || "N/A"}</strong></div>\n                    <div class="stats-kpi"><span>Demos</span><strong>${n.demos?.demos || 0}</strong></div>\n                    <div class="stats-kpi"><span>Total Demos</span><strong>${i.demos}</strong></div>\n                </div>\n            `;
+  const d = e.playerRows.map(e => "<tr><td>" + escapeHtml(e.name) + "</td><td>" + escapeHtml(e.teamName) + "</td><td>" + e.boost + "%</td><td>" + fmtPct(e.goalSharePct) + "</td><td>" + fmtPct(e.assistSharePct) + "</td><td>" + fmtPct(e.saveSharePct) + "</td><td>" + fmtPct(e.shotSharePct) + "</td><td>" + fmtPct(e.scoreSharePct) + "</td><td>" + fmtPct(e.shootingPct) + "</td><td>" + fmtPct(e.participationPct) + "</td></tr>").join("");
+  a.innerHTML = '<div class="table-scroll"><table class="percent-table"><thead><tr><th>Player</th><th>Team</th><th>Boost</th><th>Goal Share</th><th>Assist Share</th><th>Save Share</th><th>Shot Share</th><th>Score Share</th><th>Shooting %</th><th>Participation %</th></tr></thead><tbody>' + d + "</tbody></table></div>";
   const l = e.teamStats[0], c = e.teamStats[1], u = Math.abs(l.shots - c.shots), m = Math.abs(pct(l.goals, l.shots) - pct(c.goals, c.shots)), g = [], h = l.goals + c.goals, p = l.shots + c.shots, y = p >= 20 ? "high-octane" : p >= 12 ? "steady pressure" : "chess-match", b = Math.abs(l.goals - c.goals), S = l.shots > c.shots ? l : c, f = pct(l.goals, l.shots) > pct(c.goals, c.shots) ? l : c;
   g.push((escapeHtml(n.score?.name) || "A player") + " leads the lobby with " + (n.score?.score || 0) + " score."),
   g.push((escapeHtml(n.participation?.name) || "A player") + " has " + fmtPct(n.participation?.participationPct || 0) + " goal participation."),
@@ -8549,16 +9161,14 @@ function setStatsActionsVisible(e) {
 }
 
 function setStatsView(e) {
-  let t = [ "history", "recording" ].includes(e) ? e : "live";
-  "history" !== t || hasPremiumAccess() ? "recording" !== t || hasPremiumAccess() || (t = "live") : (t = "live", 
-  showPanelToast("Match History is a Rocket Cast + feature", !0)), "recording" !== t && (lastNonRecordingStatsView = t),
+  let t = "history" === e ? e : "live";
+  "history" !== t || hasPremiumAccess() || (t = "live", showPanelToast("Match History is a Rocket Cast + feature", !0)),
   localStorage.setItem(STATS_VIEW_KEY, t);
   const o = document.getElementById("stats-view-select");
   o && o.value !== t && (o.value = t);
-  const a = document.getElementById("stats-view-live"), r = document.getElementById("stats-view-history"), n = document.getElementById("stats-view-recording");
-  a && a.classList.toggle("active", "live" === t), r && r.classList.toggle("active", "history" === t), 
-  n && n.classList.toggle("active", "recording" === t), setStatsActionsVisible("live" === t), 
-  "history" === t ? loadMatchHistory(!1) : "recording" === t && maybeShowRecordingMethodChooser();
+  const a = document.getElementById("stats-view-live"), r = document.getElementById("stats-view-history");
+  a && a.classList.toggle("active", "live" === t), r && r.classList.toggle("active", "history" === t),
+  setStatsActionsVisible("live" === t), "history" === t && loadMatchHistory(!1);
 }
 
 // Generic "we know the shape of what's coming, not the content yet" loading
@@ -8598,6 +9208,11 @@ function renderMatchHistory() {
     const gameRows = games.map(game => {
       const gBlue = Number(game?.scoreline?.blue || 0), gOrange = Number(game?.scoreline?.orange || 0), winner = String(game?.winner || "draw"), winnerName = "blue" === winner ? blueName : "orange" === winner ? orangeName : "-", goalCount = Array.isArray(game?.goals) ? game.goals.length : 0, duration = formatHistoryDuration(game.durationMs), summary = game?.summary || {}, players = Array.isArray(summary?.players) ? summary.players : [];
       const playerRows = players.length ? players.map(p => `<tr><td>${escapeHtml(String(p?.name || "Unknown"))}</td><td>${0 === Number(p?.teamNum) ? "Blue" : "Orange"}</td><td>${Number(p?.score || 0)}</td></tr>`).join("") : '<tr><td colspan="3">No player score payload was captured for this game.</td></tr>';
+      // Only ever show a per-game reel button once the reel has actually
+      // finished building -- there's no on-demand build-on-click for game
+      // reels the way the series-level button has, so a button that's just
+      // going to 404/build-forever isn't shown at all.
+      const gameReelReady = Boolean(game?.highlightReel?.mediaPath), gameReelActions = gameReelReady ? isGuestModeActive ? '<div class="history-game-reel-actions"><button type="button" class="btn history-action-btn history-action-btn-secondary" disabled title="The highlight reel video lives on the host machine only">Connected to Server - Unplayable</button></div>' : `<div class="history-game-reel-actions"><button type="button" class="btn history-action-btn" data-match-play-reel data-match-id="${escapeHtml(String(game?.matchId || ""))}">Play Reel</button> <button type="button" class="btn history-action-btn history-action-btn-secondary" data-loop-reel data-loop-kind="game" data-loop-id="${escapeHtml(String(game?.matchId || ""))}">Loop</button></div>` : "";
       return `
         <article class="history-game-card">
           <div class="history-game-row">
@@ -8608,6 +9223,7 @@ function renderMatchHistory() {
             <span class="history-game-chip history-game-chip-winner">Won by ${escapeHtml(winnerName)}</span>
             <button type="button" class="history-game-delete-btn" data-match-delete data-match-id="${escapeHtml(String(game?.matchId || ""))}" title="Delete this game" aria-label="Delete this game">&times;</button>
           </div>
+          ${gameReelActions}
           <details class="history-game-details">
             <summary></summary>
             <div class="history-game-detail-body">
@@ -8640,7 +9256,7 @@ function renderMatchHistory() {
         <div class="history-series-track" style="--series-pip-count:${pipCount};">${pips}</div>
         <div class="history-series-scoreline">${escapeHtml(blueName)} <strong>${blueWins} - ${orangeWins}</strong> ${escapeHtml(orangeName)}</div>
         <div class="history-series-actions">
-          ${games.length ? isGuestModeActive ? '<button type="button" class="btn history-action-btn history-action-btn-secondary" disabled title="The highlight reel video lives on the host machine only">Connected to Server - Unplayable</button>' : `<button type="button" class="btn history-action-btn" data-series-play-reel data-series-id="${escapeHtml(String(series.id || ""))}">Play Reel</button>` : ""}
+          ${games.length ? isGuestModeActive ? '<button type="button" class="btn history-action-btn history-action-btn-secondary" disabled title="The highlight reel video lives on the host machine only">Connected to Server - Unplayable</button>' : `<button type="button" class="btn history-action-btn" data-series-play-reel data-series-id="${escapeHtml(String(series.id || ""))}">Play Reel</button> <button type="button" class="btn history-action-btn history-action-btn-secondary" data-loop-reel data-loop-kind="series" data-loop-id="${escapeHtml(String(series.id || ""))}">Loop</button>` : ""}
           ${isComplete ? `<button type="button" class="btn history-action-btn history-action-btn-secondary" data-series-restore data-series-id="${escapeHtml(String(series.id || ""))}">Restore Series</button>` : `<button type="button" class="btn history-action-btn history-action-btn-secondary" data-series-complete data-series-id="${escapeHtml(String(series.id || ""))}">Complete Series</button>`}
           <details class="history-edit-details">
             <summary></summary>
@@ -8667,7 +9283,19 @@ function renderMatchHistory() {
           <div class="history-games-grid">${gameRows}</div>
         </details>
       </div>`;
-  }).join("");
+  }).join(""), syncLoopButtonsUi();
+}
+
+// Only one highlight reel plays in the overlay at a time, so this tracks
+// which Loop button (if any) is the one currently looping, for the
+// Loop/Stop Loop buttons on both series and per-game reel cards.
+let activeLoopReel = null;
+
+function syncLoopButtonsUi() {
+  document.querySelectorAll("[data-loop-reel]").forEach(btn => {
+    const kind = btn.getAttribute("data-loop-kind"), id = btn.getAttribute("data-loop-id"), isActive = Boolean(activeLoopReel && activeLoopReel.kind === kind && activeLoopReel.id === id);
+    btn.textContent = isActive ? "Stop Loop" : "Loop", btn.classList.toggle("is-looping", isActive);
+  });
 }
 
 async function loadMatchHistory(e = !1) {
@@ -8753,8 +9381,8 @@ function setRecordingFrameValue(e, t) {
 }
 
 function updateRecordingStatusUi() {
-  setRecordingStatus("recording-active-match", recordingState.activeMatch?.matchId || "None"), 
-  setRecordingStatus("recording-game-feed", recordingState.gameStream ? "Connected" : "Disconnected");
+  setRecordingStatus("recording-active-match", recordingState.activeMatch?.matchId || "None"),
+  setStatusToneText("recording-game-feed", recordingState.gameStream ? "Connected" : "Disconnected", Boolean(recordingState.gameStream));
   const e = Number(recordingState.captureMeta?.width || 0), t = Number(recordingState.captureMeta?.height || 0), o = Number(recordingState.captureMeta?.frameRate || 0);
   setRecordingStatus("recording-capture-format", e > 0 && t > 0 ? `${e}x${t}${o > 0 ? ` @ ${o}fps` : ""}` : "--");
   const a = getRecordingOutputConfig();
@@ -9216,6 +9844,10 @@ function startRecordingMatchPolling() {
   }, 2500), refreshActiveRecordingMatch();
 }
 
+function stopRecordingMatchPolling() {
+  recordingState.pollingTimer && (clearInterval(recordingState.pollingTimer), recordingState.pollingTimer = null);
+}
+
 async function deleteMatchById(e) {
   const t = await fetch(`/api/matches/${encodeURIComponent(e)}`, {
     method: "DELETE"
@@ -9291,7 +9923,7 @@ function buildPlayerTableText(e) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  
+  initMsSubtabs();
   const e = document.getElementById("upload-overlay-btn");
   e && e.addEventListener("click", uploadOverlayFolder);
   const t = document.getElementById("open-overlays-folder-btn");
@@ -9300,14 +9932,6 @@ document.addEventListener("DOMContentLoaded", () => {
   o && o.addEventListener("click", loadOverlays);
   const a = document.getElementById("overlays-retry-btn");
   a && a.addEventListener("click", retryLoadOverlays);
-  const r = document.getElementById("quick-launch-btn");
-  r && r.addEventListener("click", quickLaunchOverlay);
-  const n = document.getElementById("sidebar-collapse-toggle");
-  n && n.addEventListener("click", () => {
-    setSidebarCollapsed(!document.querySelector(".app-sidebar")?.classList.contains("collapsed"));
-  });
-  const i = window.matchMedia("(max-width:980px)");
-  i && ("function" == typeof i.addEventListener ? i.addEventListener("change", syncSidebarCollapsedForLayout) : "function" == typeof i.addListener && i.addListener(syncSidebarCollapsedForLayout));
   const s = document.getElementById("launch-builtin-overlay-btn");
   s && s.addEventListener("click", () => launchOverlayFromSelect("builtin-overlay-select"));
   const d = document.getElementById("builtin-overlay-select");
@@ -9318,6 +9942,14 @@ document.addEventListener("DOMContentLoaded", () => {
   c && c.addEventListener("change", refreshRecordingOverlayPreview);
   const u = document.getElementById("delete-custom-overlay-btn");
   u && u.addEventListener("click", deleteSelectedCustomOverlay);
+  const r = document.getElementById("quick-launch-btn");
+  r && r.addEventListener("click", quickLaunchOverlay);
+  const n = document.getElementById("sidebar-collapse-toggle");
+  n && n.addEventListener("click", () => {
+    setSidebarCollapsed(!document.querySelector(".app-sidebar")?.classList.contains("collapsed"));
+  });
+  const i = window.matchMedia("(max-width:980px)");
+  i && ("function" == typeof i.addEventListener ? i.addEventListener("change", syncSidebarCollapsedForLayout) : "function" == typeof i.addListener && i.addListener(syncSidebarCollapsedForLayout));
   const m = document.getElementById("builder-open-folder-btn");
   
   const g = document.getElementById("builder-open-project-btn");
@@ -9507,11 +10139,59 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const e = await playSeriesHighlightReelWithRetry(t);
         const o = Number(e?.goalCount || 0);
+        activeLoopReel = null, syncLoopButtonsUi(),
         showPanelToast(`Playing series highlight reel${o > 0 ? ` (${o} goals)` : ""} on localhost:${resolvedMediaPortLabel}`, !1);
       } catch (e) {
         showPanelToast(e?.message || "Failed to play series highlight reel", !0);
       } finally {
         a.disabled = !1, a.textContent = "Play Reel";
+      }
+      return;
+    }
+    const gameReelBtn = e.target.closest("[data-match-play-reel]");
+    if (gameReelBtn) {
+      if (isGuestModeActive) return void showPanelToast("Connected to a server. The highlight reel video only exists on the host machine.", !0);
+      const matchId = String(gameReelBtn.getAttribute("data-match-id") || "").trim();
+      if (!matchId) return void showPanelToast("Match id missing", !0);
+      gameReelBtn.disabled = !0, gameReelBtn.textContent = "Playing...";
+      try {
+        const res = await fetch(`/api/matches/${encodeURIComponent(matchId)}/reel/play`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ loop: !1 })
+        }), data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.ok) throw new Error(data?.error || `Failed to play highlight reel (${res.status})`);
+        const goalCount = Number(data?.goalCount || 0);
+        activeLoopReel = null, syncLoopButtonsUi(),
+        showPanelToast(`Playing highlight reel${goalCount > 0 ? ` (${goalCount} goals)` : ""} on localhost:${resolvedMediaPortLabel}`, !1);
+      } catch (error) {
+        showPanelToast(error?.message || "Failed to play highlight reel", !0);
+      } finally {
+        gameReelBtn.disabled = !1, gameReelBtn.textContent = "Play Reel";
+      }
+      return;
+    }
+    const loopBtn = e.target.closest("[data-loop-reel]");
+    if (loopBtn) {
+      if (isGuestModeActive) return void showPanelToast("Connected to a server. The highlight reel video only exists on the host machine.", !0);
+      const kind = loopBtn.getAttribute("data-loop-kind"), id = String(loopBtn.getAttribute("data-loop-id") || "").trim();
+      if (!id) return;
+      const wasActive = Boolean(activeLoopReel && activeLoopReel.kind === kind && activeLoopReel.id === id);
+      loopBtn.disabled = !0;
+      try {
+        if (wasActive) await fetch("/api/reels/stop", { method: "POST" }), activeLoopReel = null; else {
+          const url = "series" === kind ? `/api/series/${encodeURIComponent(id)}/reel/play` : `/api/matches/${encodeURIComponent(id)}/reel/play`, res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ loop: !0 })
+          }), data = await res.json().catch(() => ({}));
+          if (!res.ok || !data?.ok) throw new Error(data?.error || `Failed to loop highlight reel (${res.status})`);
+          activeLoopReel = { kind: kind, id: id }, showPanelToast("Looping highlight reel", !1);
+        }
+      } catch (error) {
+        showPanelToast(error?.message || "Failed to loop highlight reel", !0);
+      } finally {
+        loopBtn.disabled = !1, syncLoopButtonsUi();
       }
       return;
     }
@@ -9663,6 +10343,32 @@ document.addEventListener("DOMContentLoaded", () => {
       setButtonBusy(replayBufferSetupBtn, !1);
     }
   });
+  const mediaAutoSetupBtn = document.getElementById("media-auto-setup-btn");
+  mediaAutoSetupBtn && mediaAutoSetupBtn.addEventListener("click", async () => {
+    setButtonBusy(mediaAutoSetupBtn, !0, "Setting up...");
+    try {
+      const res = await fetch("/api/recording/obs/auto-setup-media", { method: "POST" }), data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) throw new Error(data?.error || `Media auto setup failed (${res.status})`);
+      showPanelToast(`Added the "${data.sceneName}" scene with a browser source for the media server (localhost:${resolvedMediaPortLabel}) in OBS.`, !1);
+    } catch (error) {
+      showPanelToast(error?.message || "Media auto setup failed", !0);
+    } finally {
+      setButtonBusy(mediaAutoSetupBtn, !1);
+    }
+  });
+  const playLastReelBtn = document.getElementById("play-last-highlight-reel-btn");
+  playLastReelBtn && playLastReelBtn.addEventListener("click", async () => {
+    if (isGuestModeActive) return void showPanelToast("Connected to a server. The highlight reel video only exists on the host machine.", !0);
+    setButtonBusy(playLastReelBtn, !0, "Playing...");
+    try {
+      const data = await playMostRecentSeriesHighlightReel(), goalCount = Number(data?.goalCount || 0);
+      showPanelToast(`Playing latest series highlight reel${goalCount > 0 ? ` (${goalCount} goals)` : ""} on localhost:${resolvedMediaPortLabel}`, !1);
+    } catch (error) {
+      showPanelToast(error?.message || "Failed to play highlight reel", !0);
+    } finally {
+      setButtonBusy(playLastReelBtn, !1);
+    }
+  });
   const Ce = document.getElementById("recording-arm-buffer-btn");
   Ce && Ce.addEventListener("click", async () => {
     await ensureRecordingAutoStarted(), showPanelToast("Auto recorder armed", !1);
@@ -9696,7 +10402,11 @@ document.addEventListener("DOMContentLoaded", () => {
   Ne && Ne.addEventListener("change", () => {
     updateRecordingStatusUi(), showPanelToast("Quality updated. Restart buffer for immediate effect.", !1);
   }), refreshRecordingOverlayPreview(), applyRecordingMethodUi(), applyRecordingFrameTransform(),
-  syncRecordingFrameInputs(), updateRecordingStatusUi(), startRecordingMatchPolling(),
+  // A one-time fetch instead of startRecordingMatchPolling() here -- the
+  // recurring 2.5s poll only needs to run while the Recording flyout is
+  // actually open (see openMsFlyout/closeMsFlyout), not for the app's
+  // whole lifetime.
+  syncRecordingFrameInputs(), updateRecordingStatusUi(), refreshActiveRecordingMatch(),
   loadRecordingIntegrationStatus().then(async () => {
     // The "record with OBS" (Record Goals for Highlights) checkbox state
     // persists in localStorage across restarts, but that's just UI state —
@@ -9742,7 +10452,10 @@ document.addEventListener("DOMContentLoaded", () => {
 }), panelSocket.on("rl-status", e => {
   lastRlStatus = e || null;
   const t = Boolean(panelSocket && panelSocket.connected), o = t ? e && e.connected ? "connected" : "disconnected" : "failed", a = t ? e && e.connected ? "Connected" : "Disconnected" : "RL status unavailable (relay disconnected)";
-  setRlConnectionState(o, a), console.log("RL status:", a);
+  // Rocket League's reconnect loop retries roughly once a second while the
+  // game isn't running, so this event fires constantly with the same label
+  // -- only log on an actual transition instead of spamming every retry.
+  setRlConnectionState(o, a), a !== lastLoggedRlStatusLabel && (lastLoggedRlStatusLabel = a, console.log("RL status:", a));
 });
 
 // Sent by our own local server when it drops a change we tried to relay up

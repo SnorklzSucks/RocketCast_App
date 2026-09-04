@@ -698,7 +698,12 @@ posthog || console.log("PostHog disabled: POSTHOG_API_KEY not set."),
 app.use(compression()), mediaApp.use(compression()),
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff"), res.setHeader("Referrer-Policy", "no-referrer"),
-  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  // camera=() / microphone=() at the top level would also block a delegated
+  // grant to an embedded frame -- the Camera Feeds panel embeds a caster's
+  // own vdo.ninja link (which may itself need to capture a local camera/mic
+  // if that link is a push/room link, not just a view link), so vdo.ninja
+  // specifically is allowed through; everything else stays locked out.
+  res.setHeader("Permissions-Policy", 'camera=(self "https://vdo.ninja"), microphone=(self "https://vdo.ninja"), geolocation=()');
   // Nothing in this app loads a script/style/font from any external host
   // (no CDN, no Google Fonts, no Stripe.js) -- everything is same-origin or
   // inline, so 'self' + 'unsafe-inline' costs nothing functionally while
@@ -706,11 +711,13 @@ app.use((req, res, next) => {
   // ever lands: pulling in attacker-hosted JS, and framing/embedding
   // plugins. Kept out of script/style-src is any 'unsafe-eval', and
   // object-src/base-uri are locked down outright.
-  // script-src/frame-src/connect-src/img-src each get one narrow addition
+  // script-src/frame-src/connect-src/img-src each get narrow additions
   // here: platform.twitter.com (and its syndication/image hosts) for the
-  // official X/Twitter embed widget on the public landing page. Nothing
-  // else gets widened.
-  res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://platform.twitter.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://pbs.twimg.com https://abs.twimg.com; media-src 'self' blob:; connect-src 'self' ws: wss: https://cdn.syndication.twimg.com https://syndication.twitter.com; font-src 'self' data:; frame-src 'self' https://platform.twitter.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'");
+  // official X/Twitter embed widget on the public landing page, and
+  // frame-src also carries vdo.ninja for the Camera Feeds panel, which
+  // embeds a caster-supplied VDO.Ninja link as a browser-source-style
+  // iframe. Nothing else gets widened.
+  res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://platform.twitter.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://pbs.twimg.com https://abs.twimg.com; media-src 'self' blob:; connect-src 'self' ws: wss: https://cdn.syndication.twimg.com https://syndication.twitter.com; font-src 'self' data:; frame-src 'self' https://platform.twitter.com https://vdo.ninja; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'");
   const requestPath = decodeURIComponent(req.path || ""), pathParts = requestPath.split("/").filter(Boolean);
   "/browser-source" === requestPath || requestPath.startsWith("/overlays/") || pathParts.length > 0 && overlayRegistry?.has(pathParts[0]) ? res.setHeader("X-Frame-Options", "SAMEORIGIN") : res.setHeader("X-Frame-Options", "DENY"),
   "/api/web/billing/webhook" !== req.path ? /^\/api\/matches\/[^/]+\/clips\/[^/]+\/upload$/.test(String(req.path || "")) ? next() : express.json({
@@ -1104,7 +1111,6 @@ p:last-child{margin-bottom:0}
           <p class="tier-price">from $150<span style="font-size:15px;color:var(--muted)">/season</span></p>
           <p class="tier-note">Built for college esports programs and CRL broadcasts. Start free, upgrade anytime.</p>
           <ul>
-            <li>CRL Overlay</li>
             <li>Full season broadcast support</li>
             <li>Custom Assets</li>
           </ul>
@@ -2239,6 +2245,14 @@ function stopGoalCaptureBuffer() {
   rocketCastPlus && rocketCastPlus.stopGoalCaptureBuffer();
 }
 
+function pushHypeChamberTeamData(overrides) {
+  rocketCastPlus && rocketCastPlus.pushHypeChamberTeamData(overrides);
+}
+
+function notifyHypeChamberMatchEvent(packet) {
+  rocketCastPlus && rocketCastPlus.notifyHypeChamberMatchEvent(packet);
+}
+
 loadAnalyticsStore(), pruneAnalyticsEvents(), saveAnalyticsStore(), 
 app.post("/api/analytics/event", (req, res) => {
   const body = req.body && "object" == typeof req.body ? req.body : {}, type = String(body.type || "").trim();
@@ -2577,7 +2591,7 @@ io.use(async (socket, next) => {
   socket.emit("rl-status", lastRlStatus), socket.on("overlay-detection", data => {
     lastOverlayDetection = data && "object" == typeof data ? data : null, socket.broadcast.emit("overlay-detection", lastOverlayDetection);
   }), socket.on("overrides", data => {
-    lastOverrides = data, socket.broadcast.emit("overrides", data);
+    lastOverrides = data, socket.broadcast.emit("overrides", data), pushHypeChamberTeamData(data);
   }), socket.on("series-reset", payload => {
     const now = Date.now(), candidate = Number(payload?.at || 0);
     lastSeriesResetAt = Math.max(now, Number.isFinite(candidate) ? candidate : 0), io.emit("series-reset", {
@@ -2695,8 +2709,8 @@ function tryEmitPacket(raw) {
     }
   } else parsed = raw;
   const normalized = normalizePacket(parsed);
-  normalized && (rlGoodEndpointIndex = rlEndpointIndex, trackReplayTimingFromPacket(normalized), 
-  trackMatchHistoryFromPacket(normalized), rlPacketShapeLogged || (rlPacketShapeLogged = !0, 
+  normalized && (rlGoodEndpointIndex = rlEndpointIndex, trackReplayTimingFromPacket(normalized),
+  trackMatchHistoryFromPacket(normalized), notifyHypeChamberMatchEvent(normalized), rlPacketShapeLogged || (rlPacketShapeLogged = !0,
   console.log("🎮 First Rocket League packet keys:", Object.keys(normalized.Data || normalized).join(", "))), 
   updateRocketLeagueStatus({
     connected: !0,
@@ -2718,7 +2732,7 @@ function cleanupRocketLeagueConnection() {
 }
 
 function connectViaTcp(endpoint) {
-  let dataBuffer = "";
+  let dataBuffer = "", lastError = null;
   const socket = net.createConnection({
     host: endpoint.host,
     port: endpoint.port
@@ -2736,24 +2750,24 @@ function connectViaTcp(endpoint) {
     extracted.chunks.forEach(chunk => {
       tryEmitPacket(chunk);
     }), dataBuffer = extracted.remainder;
+  // error is always followed by close for a failed connection attempt --
+  // just remember the message here and fold it into the one status
+  // broadcast that close already sends, instead of pushing two.
   }), socket.on("error", err => {
-    console.log(`🎮 Rocket League TCP error (${endpoint.href}):`, err.message), updateRocketLeagueStatus({
-      connected: !1,
-      endpoint: endpoint.href,
-      transport: "tcp",
-      lastError: err.message
-    });
+    console.log(`🎮 Rocket League TCP error (${endpoint.href}):`, err.message), lastError = err.message;
   }), socket.on("close", () => {
     console.log(`🎮 Rocket League TCP connection closed (${endpoint.href})`), rlConnection === socket && (updateRocketLeagueStatus({
       connected: !1,
       endpoint: endpoint.href,
-      transport: "tcp"
-    }), rlConnection = null, rlEndpointIndex = rlGoodEndpointIndex >= 0 ? rlGoodEndpointIndex : (rlEndpointIndex + 1) % rlEndpoints.length, 
+      transport: "tcp",
+      lastError: lastError
+    }), rlConnection = null, rlEndpointIndex = rlGoodEndpointIndex >= 0 ? rlGoodEndpointIndex : (rlEndpointIndex + 1) % rlEndpoints.length,
     scheduleRocketLeagueReconnect());
   }), rlConnection = socket;
 }
 
 function connectViaWebSocket(endpoint) {
+  let lastError = null;
   const ws = new WebSocket(endpoint.href);
   ws.on("open", () => {
     console.log(`🎮 Connected to Rocket League via ${endpoint.href}`), updateRocketLeagueStatus({
@@ -2764,20 +2778,18 @@ function connectViaWebSocket(endpoint) {
     });
   }), ws.on("message", message => {
     tryEmitPacket(Buffer.isBuffer(message) ? message.toString("utf8") : String(message));
+  // error is always followed by close for a failed connection attempt --
+  // just remember the message here and fold it into the one status
+  // broadcast that close already sends, instead of pushing two.
   }), ws.on("error", err => {
-    console.log(`🎮 Rocket League WebSocket error (${endpoint.href}):`, err.message), 
-    updateRocketLeagueStatus({
-      connected: !1,
-      endpoint: endpoint.href,
-      transport: endpoint.protocol,
-      lastError: err.message
-    });
+    console.log(`🎮 Rocket League WebSocket error (${endpoint.href}):`, err.message), lastError = err.message;
   }), ws.on("close", () => {
     console.log(`🎮 Rocket League WebSocket closed (${endpoint.href})`), rlConnection === ws && (updateRocketLeagueStatus({
       connected: !1,
       endpoint: endpoint.href,
-      transport: endpoint.protocol
-    }), rlConnection = null, rlEndpointIndex = rlGoodEndpointIndex >= 0 ? rlGoodEndpointIndex : (rlEndpointIndex + 1) % rlEndpoints.length, 
+      transport: endpoint.protocol,
+      lastError: lastError
+    }), rlConnection = null, rlEndpointIndex = rlGoodEndpointIndex >= 0 ? rlGoodEndpointIndex : (rlEndpointIndex + 1) % rlEndpoints.length,
     scheduleRocketLeagueReconnect());
   }), rlConnection = ws;
 }

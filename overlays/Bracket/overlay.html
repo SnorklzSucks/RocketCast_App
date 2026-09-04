@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Bracket Overlay</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+@font-face{
+  font-family:Bourgeois;
+  src:url('fonts/Bourgeois-UltraBoldItalic.ttf') format('truetype');
+  font-weight:900;
+  font-style:italic
+}
+@font-face{
+  font-family:BourgeoisBold;
+  src:url('fonts/Bourgeois-BoldItal.otf') format('opentype');
+  font-weight:700;
+  font-style:italic
+}
+@font-face{
+  font-family:BourgeoisBoldRegular;
+  src:url('fonts/Bourgeois-Bold.otf') format('opentype');
+  font-weight:700;
+  font-style:normal
+}
+:root{
+  --gold:#c9a84c;
+  --card-bg:#101114;
+  --card-border:rgba(255,255,255,.09);
+  --dim:rgba(255,255,255,.4);
+}
+*,::before,::after{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  width:1920px;
+  height:1080px;
+  background:transparent;
+  overflow:hidden;
+  font-family:BourgeoisBoldRegular,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  color:#fff;
+}
+#bracket-root{
+  position:absolute;
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  background:radial-gradient(120% 100% at 50% 0%,#0c0e14 0%,#05070a 60%,#05070a 100%);
+  opacity:0;
+  transition:opacity .4s ease;
+}
+#bracket-root.ready{opacity:1}
+#bracket-header{
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  padding:22px 40px 14px;
+  border-bottom:2px solid var(--gold);
+  background:rgba(0,0,0,.35);
+}
+#bracket-logo{
+  width:46px;
+  height:46px;
+  object-fit:contain;
+  margin-bottom:6px;
+  filter:drop-shadow(0 0 10px rgba(255,255,255,.25));
+}
+#bracket-event-name{
+  font-family:Bourgeois,sans-serif;
+  font-weight:900;
+  font-style:italic;
+  font-size:44px;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+  color:#fff;
+  text-shadow:0 2px 18px rgba(0,0,0,.6);
+}
+#bracket-type-label{
+  margin-top:4px;
+  font-size:16px;
+  letter-spacing:.4em;
+  text-transform:uppercase;
+  color:var(--gold);
+}
+#bracket-body{
+  flex:1;
+  min-height:0;
+  padding:26px 40px 30px;
+  overflow:auto;
+  display:flex;
+  flex-direction:column;
+  gap:26px;
+}
+.bracket-section-label{
+  font-family:BourgeoisBold,sans-serif;
+  font-style:italic;
+  font-size:19px;
+  letter-spacing:.24em;
+  text-transform:uppercase;
+  color:var(--dim);
+  margin-bottom:10px;
+  padding-left:2px;
+}
+.bracket-columns{
+  display:flex;
+  align-items:stretch;
+  gap:34px;
+}
+.bracket-round-col{
+  display:flex;
+  flex-direction:column;
+  justify-content:space-around;
+  flex:1;
+  min-width:230px;
+  gap:14px;
+}
+.bracket-round-title{
+  text-align:center;
+  font-size:13px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--dim);
+  margin-bottom:2px;
+}
+.bracket-match-card{
+  background:var(--card-bg);
+  border:1px solid var(--card-border);
+  border-radius:2px;
+  overflow:hidden;
+  box-shadow:0 6px 18px rgba(0,0,0,.35);
+}
+.bracket-match-card.bye{opacity:.55}
+.bracket-slot{
+  display:flex;
+  align-items:center;
+  height:40px;
+  padding:0 12px;
+  gap:8px;
+  border-left:3px solid transparent;
+}
+.bracket-slot+.bracket-slot{border-top:1px solid var(--card-border)}
+.bracket-slot .seed{
+  flex-shrink:0;
+  width:20px;
+  font-size:12px;
+  color:var(--dim);
+  text-align:center;
+}
+.bracket-slot .name{
+  flex:1;
+  font-family:BourgeoisBold,sans-serif;
+  font-style:italic;
+  font-weight:700;
+  font-size:17px;
+  letter-spacing:.02em;
+  text-transform:uppercase;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.bracket-slot .score{
+  flex-shrink:0;
+  min-width:22px;
+  text-align:right;
+  font-family:Bourgeois,sans-serif;
+  font-weight:900;
+  font-style:italic;
+  font-size:19px;
+}
+.bracket-slot.winner{border-left-color:var(--gold)}
+.bracket-slot.winner .name,.bracket-slot.winner .score{color:var(--gold)}
+.bracket-slot.loser{opacity:.4}
+.bracket-slot.empty .name{color:var(--dim);font-style:normal;letter-spacing:.1em}
+.bracket-gf-row{display:flex;gap:20px;justify-content:center}
+.bracket-gf-row .bracket-match-card{width:320px}
+.bracket-standings-wrap{overflow:auto}
+table.bracket-standings{
+  width:100%;
+  border-collapse:collapse;
+  font-size:16px;
+}
+table.bracket-standings th{
+  text-align:left;
+  font-size:12px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--dim);
+  padding:6px 10px;
+  border-bottom:1px solid var(--card-border);
+}
+table.bracket-standings td{
+  padding:9px 10px;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  font-family:BourgeoisBold,sans-serif;
+  font-style:italic;
+}
+table.bracket-standings tr:nth-child(odd) td{background:rgba(255,255,255,.02)}
+table.bracket-standings tr.rank-1 td{color:var(--gold)}
+table.bracket-standings td.num{text-align:center;font-family:Bourgeois,sans-serif;font-weight:900}
+.bracket-rr-rounds{display:flex;flex-direction:column;gap:10px}
+.bracket-rr-round{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.bracket-rr-round .rr-round-label{
+  width:90px;
+  flex-shrink:0;
+  font-size:12px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--dim);
+}
+.bracket-rr-chip{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background:var(--card-bg);
+  border:1px solid var(--card-border);
+  border-radius:2px;
+  padding:6px 12px;
+  font-family:BourgeoisBold,sans-serif;
+  font-style:italic;
+  font-size:14px;
+}
+.bracket-rr-chip .rr-score{color:var(--gold);font-family:Bourgeois,sans-serif;font-weight:900}
+.bracket-empty{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:BourgeoisBold,sans-serif;
+  font-style:italic;
+  font-size:22px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--dim);
+}
+</style>
+</head>
+<body>
+<div id="bracket-root">
+  <div id="bracket-header">
+    <img id="bracket-logo" src="rl-logo.png" alt="" />
+    <div id="bracket-event-name">Bracket</div>
+    <div id="bracket-type-label"></div>
+  </div>
+  <div id="bracket-body"></div>
+</div>
+
+<script>
+(() => {
+  const root = document.getElementById('bracket-root');
+  const eventNameEl = document.getElementById('bracket-event-name');
+  const typeLabelEl = document.getElementById('bracket-type-label');
+  const bodyEl = document.getElementById('bracket-body');
+
+  const TYPE_LABELS = {
+    'single-elim': 'Single Elimination',
+    'double-elim': 'Double Elimination',
+    'swiss': 'Swiss',
+    'round-robin': 'Round Robin'
+  };
+
+  let seedByTeamId = new Map();
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined && text !== null) node.textContent = text;
+    return node;
+  }
+
+  function slotNode(match, side) {
+    const slot = side === 'A' ? match.slotA : match.slotB;
+    const score = side === 'A' ? match.scoreA : match.scoreB;
+    const node = el('div', 'bracket-slot');
+    const decided = Boolean(slot && slot.teamId);
+    if (decided && match.winnerId === slot.teamId) node.classList.add('winner');
+    else if (match.completed && decided) node.classList.add('loser');
+    else if (!decided) node.classList.add('empty');
+
+    const seedNum = decided ? seedByTeamId.get(slot.teamId) : null;
+    node.appendChild(el('span', 'seed', seedNum ? String(seedNum) : ''));
+    node.appendChild(el('span', 'name', decided ? slot.teamName : (match.isBye ? '' : 'TBD')));
+    if (decided && (match.completed || match.scoreA || match.scoreB)) {
+      node.appendChild(el('span', 'score', String(score || 0)));
+    } else {
+      node.appendChild(el('span', 'score', ''));
+    }
+    return node;
+  }
+
+  function matchCard(match) {
+    const card = el('div', 'bracket-match-card' + (match.isBye ? ' bye' : ''));
+    card.appendChild(slotNode(match, 'A'));
+    card.appendChild(slotNode(match, 'B'));
+    return card;
+  }
+
+  function renderRoundColumns(rounds) {
+    const wrap = el('div', 'bracket-columns');
+    rounds.forEach(round => {
+      const col = el('div', 'bracket-round-col');
+      col.appendChild(el('div', 'bracket-round-title', round.name));
+      round.matches.forEach(m => col.appendChild(matchCard(m)));
+      wrap.appendChild(col);
+    });
+    return wrap;
+  }
+
+  function renderStandingsTable(standings) {
+    const wrap = el('div', 'bracket-standings-wrap');
+    const table = el('table', 'bracket-standings');
+    const thead = el('thead');
+    const headRow = el('tr');
+    ['#', 'Team', 'W', 'L', 'Game Diff'].forEach(h => headRow.appendChild(el('th', '', h)));
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+    const tbody = el('tbody');
+    (standings || []).forEach(s => {
+      const row = el('tr', s.rank === 1 ? 'rank-1' : '');
+      row.appendChild(el('td', 'num', String(s.rank)));
+      row.appendChild(el('td', '', s.teamName));
+      row.appendChild(el('td', 'num', String(s.wins)));
+      row.appendChild(el('td', 'num', String(s.losses)));
+      row.appendChild(el('td', 'num', (s.gameDiff > 0 ? '+' : '') + s.gameDiff));
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    return wrap;
+  }
+
+  function renderSingleElim(bracket) {
+    bodyEl.appendChild(renderRoundColumns(bracket.winnersRounds || []));
+  }
+
+  function renderDoubleElim(bracket) {
+    bodyEl.appendChild(el('div', 'bracket-section-label', 'Winners Bracket'));
+    bodyEl.appendChild(renderRoundColumns(bracket.winnersRounds || []));
+    if ((bracket.losersRounds || []).length) {
+      bodyEl.appendChild(el('div', 'bracket-section-label', 'Losers Bracket'));
+      bodyEl.appendChild(renderRoundColumns(bracket.losersRounds || []));
+    }
+    const finals = (bracket.grandFinals || []).filter(m => m.label !== 'Grand Final (Bracket Reset)' || m.active);
+    if (finals.length) {
+      bodyEl.appendChild(el('div', 'bracket-section-label', 'Grand Final'));
+      const row = el('div', 'bracket-gf-row');
+      finals.forEach(m => row.appendChild(matchCard(m)));
+      bodyEl.appendChild(row);
+    }
+  }
+
+  function renderSwiss(bracket) {
+    const rounds = bracket.swissRounds || [];
+    const current = rounds[rounds.length - 1];
+    if (current) {
+      bodyEl.appendChild(el('div', 'bracket-section-label', current.name));
+      const grid = el('div', 'bracket-columns');
+      const col = el('div', 'bracket-round-col');
+      col.style.flexDirection = 'row';
+      col.style.flexWrap = 'wrap';
+      current.matches.forEach(m => {
+        const cardWrap = el('div');
+        cardWrap.style.width = '300px';
+        cardWrap.appendChild(matchCard(m));
+        col.appendChild(cardWrap);
+      });
+      grid.appendChild(col);
+      bodyEl.appendChild(grid);
+    }
+    bodyEl.appendChild(el('div', 'bracket-section-label', 'Standings'));
+    bodyEl.appendChild(renderStandingsTable(bracket.standings || []));
+  }
+
+  function renderRoundRobin(bracket) {
+    bodyEl.appendChild(el('div', 'bracket-section-label', 'Standings'));
+    bodyEl.appendChild(renderStandingsTable(bracket.standings || []));
+    bodyEl.appendChild(el('div', 'bracket-section-label', 'Schedule'));
+    const wrap = el('div', 'bracket-rr-rounds');
+    (bracket.rounds || []).forEach(round => {
+      const row = el('div', 'bracket-rr-round');
+      row.appendChild(el('div', 'rr-round-label', round.name));
+      round.matches.forEach(m => {
+        const chip = el('span', 'bracket-rr-chip');
+        chip.appendChild(el('span', '', m.slotA.teamName));
+        if (m.completed) {
+          chip.appendChild(el('span', 'rr-score', `${m.scoreA} - ${m.scoreB}`));
+        } else {
+          chip.appendChild(el('span', 'rr-score', 'vs'));
+        }
+        chip.appendChild(el('span', '', m.slotB.teamName));
+        row.appendChild(chip);
+      });
+      wrap.appendChild(row);
+    });
+    bodyEl.appendChild(wrap);
+  }
+
+  function render(bracket) {
+    bodyEl.innerHTML = '';
+    seedByTeamId = new Map((bracket && bracket.teams || []).map(t => [t.id, t.seed]));
+    if (!bracket) {
+      typeLabelEl.textContent = '';
+      eventNameEl.textContent = 'Bracket';
+      bodyEl.appendChild(el('div', 'bracket-empty', 'Waiting for a bracket…'));
+      root.classList.add('ready');
+      return;
+    }
+    eventNameEl.textContent = bracket.name || 'Bracket';
+    typeLabelEl.textContent = (TYPE_LABELS[bracket.type] || bracket.type || '').toUpperCase();
+    if (bracket.type === 'single-elim') renderSingleElim(bracket);
+    else if (bracket.type === 'double-elim') renderDoubleElim(bracket);
+    else if (bracket.type === 'swiss') renderSwiss(bracket);
+    else if (bracket.type === 'round-robin') renderRoundRobin(bracket);
+    root.classList.add('ready');
+  }
+
+  async function loadBracket() {
+    try {
+      const response = await fetch('/api/bracket');
+      if (!response.ok) return;
+      const payload = await response.json();
+      render(payload && payload.bracket);
+    } catch {}
+  }
+
+  if (typeof io === 'function') {
+    try {
+      const socket = io();
+      socket.on('bracket-updated', payload => render(payload && payload.bracket));
+    } catch {}
+  }
+
+  loadBracket();
+  setInterval(loadBracket, 5000);
+})();
+</script>
+</body>
+</html>

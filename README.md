@@ -17,7 +17,7 @@ separate module that is not part of this repo; see
 | | |
 |---|---|
 | **Match Settings** | Team names, abbreviations, colours, logos, series length, series score, header text — pushed to every connected overlay live |
-| **Overlays** | Two broadcast overlays included (CRL and RLCS), plus any custom overlay folder you drop in |
+| **Overlays** | A broadcast overlay included (RLCS), plus any custom overlay folder you drop in |
 | **Live game data** | Reads Rocket League over its TCP/WebSocket bridge and relays state, goals and replays to overlays over Socket.IO |
 | **Stats** | Live scoreboard and player stats for the match in progress |
 | **Options** | Themes, keybinds, port configuration, media storage location |
@@ -51,7 +51,7 @@ The app serves overlays from the control port (3000 by default). Add a
 **Browser Source** in OBS pointing at the overlay you want:
 
 ```
-http://localhost:3000/CRL/
+http://localhost:3000/RLCS/
 ```
 
 The trailing slash matters. Set the source to 1920×1080. Any custom overlay
@@ -117,7 +117,10 @@ Not included here:
 - Accounts, sign-in and subscription billing
 - The admin panel
 - The Overlay Builder
-- Bracket generation and start.gg import
+- Bracket generation and start.gg import (the Bracket overlay ships in
+  `overlays/`, but has nothing to render without the paid module behind it)
+- The Hype Chamber bridge (drives a companion Unreal Engine project over its
+  Remote Control API — admin-only even on the paid tier)
 - Goal capture, highlight reels, OBS recording integration and match history
 - Unlimited LAN guest seats
 
@@ -134,7 +137,7 @@ preload.js       Renderer bridge
 server.js        Control + overlay server (free build)
 index.html       Control panel
 renderer.js      Panel-side helpers
-overlays/        Bundled overlays (CRL, RLCS)
+overlays/        Bundled overlays (RLCS, Bracket -- Bracket needs Rocket Cast +)
 public/          Landing page, loader, universal overlay control
 build/           Icons and panel artwork
 ```
@@ -144,11 +147,6 @@ build/           Icons and panel artwork
 - `package.json` still lists `stripe`, `pg` and `imapflow` as dependencies.
   They're only used by the Rocket Cast + module, but they stay in the manifest
   so `npm ci` matches the committed lockfile.
-- The CRL overlay is set in Bourgeois and TT Octosquares. The TT Octosquares
-  files are trial-licensed, so they aren't committed — the scoreboard numerals
-  and team names fall back to a system sans until you drop your own licensed
-  copies into `overlays/CRL/fonts/`. Everything set in Bourgeois renders as
-  intended.
 - Rocket Cast reads the game through a local bridge and never sends match data
   anywhere. See the privacy policy at
   [rocketcast.net/privacy](https://rocketcast.net/privacy).

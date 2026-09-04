@@ -2600,7 +2600,7 @@ function playHighlightReel(e) {
   };
   a.onerror = l;
   const r = o.includes("?") ? "&" : "?";
-  a.src = `${o}${r}t=${Date.now()}`, t.classList.add("show"), t.setAttribute("aria-hidden", "false"), 
+  a.loop = Boolean(e?.loop), a.src = `${o}${r}t=${Date.now()}`, t.classList.add("show"), t.setAttribute("aria-hidden", "false"),
   a.currentTime = 0, a.play().catch(() => {
     l();
   });
@@ -2609,6 +2609,13 @@ function playHighlightReel(e) {
 $("highlight-reel-video").addEventListener("ended", () => {
   stopHighlightReel(!1);
 });
+
+// Loop/Stop Loop button in the panel emits this bare "stop whatever's
+// playing" event -- only one highlight reel plays in the overlay at a time.
+function handleHighlightReelStop() {
+  const a = $("highlight-reel-video");
+  a && (a.loop = !1), lastHighlightReelPlayToken = "", stopHighlightReel(!1);
+}
 
 const socket = io(), reelSocket = io("http://localhost:3001");
 
@@ -2661,6 +2668,10 @@ socket.on("connect", () => {
   handleHighlightReelPlay(e || {});
 }), reelSocket.on("highlight-reel-play", e => {
   handleHighlightReelPlay(e || {});
+}), socket.on("highlight-reel-stop", () => {
+  handleHighlightReelStop();
+}), reelSocket.on("highlight-reel-stop", () => {
+  handleHighlightReelStop();
 });
 
 let OV = {}, gameBlueTeamName = "BLUE", gameOrangeTeamName = "ORANGE", cameraLayerShells = {}, cameraLayerIframes = {};
