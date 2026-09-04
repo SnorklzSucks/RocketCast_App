@@ -1,4 +1,4 @@
-t# Rocket Cast
+# Rocket Cast
 
 Broadcast overlays and a control panel for Rocket League casters. Rocket Cast
 reads live match state from the game, serves overlays over HTTP for OBS to pick
