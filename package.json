@@ -1,6 +1,6 @@
 {
   "name": "rc---rocket-cast",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "Rocket League broadcast overlays and a control panel for casters. Free build.",
   "main": "main.js",
   "scripts": {

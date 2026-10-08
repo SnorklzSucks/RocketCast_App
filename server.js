@@ -686,7 +686,246 @@ function renderTermsOfServiceContentHtml() {
 }
 
 function renderStandaloneReelPlayerHtml() {
-  return `<!doctype html>\n<html lang="en">\n<head>\n    <meta charset="UTF-8" />\n    <meta name="viewport" content="width=device-width,initial-scale=1" />\n    <title>Rocket Cast Highlight Reels</title>\n    <style>\n        html, body {\n            margin: 0;\n            width: 100%;\n            height: 100%;\n            overflow: hidden;\n            background: transparent;\n        }\n\n        #reel-root {\n            position: fixed;\n            inset: 0;\n            opacity: 0;\n            transition: opacity 420ms ease;\n            background: transparent;\n        }\n\n        #reel-root.ready {\n            opacity: 1;\n        }\n\n        #reel-video {\n            position: absolute;\n            inset: 0;\n            width: 100%;\n            height: 100%;\n            object-fit: cover;\n            background: transparent;\n        }\n    </style>\n</head>\n<body>\n    <div id="reel-root">\n        <video id="reel-video" playsinline></video>\n    </div>\n\n    <script src="/socket.io/socket.io.js"><\/script>\n    <script>\n        (() => {\n            const root = document.getElementById('reel-root');\n            const video = document.getElementById('reel-video');\n            const mediaOrigin = 'http://localhost:${mediaHttpPort}';\n            let lastToken = '';\n            let hideTimer = null;\n\n            function normalizeMediaUrl(value) {\n                const raw = String(value || '').trim();\n                if (!raw) return '';\n                if (raw.startsWith('/media/')) return mediaOrigin + raw;\n                if (raw.startsWith('/')) return mediaOrigin + raw;\n\n                if (raw.startsWith('http://') || raw.startsWith('https://')) {\n                    try {\n                        const parsed = new URL(raw);\n                        if (parsed.pathname.startsWith('/media/')) {\n                            parsed.protocol = 'http:';\n                            parsed.hostname = 'localhost';\n                            parsed.port = String(${mediaHttpPort});\n                            return parsed.toString();\n                        }\n                        return raw;\n                    } catch {\n                        return raw;\n                    }\n                }\n\n                return mediaOrigin + '/media/' + raw;\n            }\n\n            function stopVideo(immediate = false) {\n                if (hideTimer) {\n                    clearTimeout(hideTimer);\n                    hideTimer = null;\n                }\n\n                if (!immediate) {\n                    root.classList.remove('ready');\n                    hideTimer = setTimeout(() => {\n                        video.pause();\n                        video.removeAttribute('src');\n                        video.load();\n                    }, 430);\n                    return;\n                }\n\n                root.classList.remove('ready');\n                video.pause();\n                video.removeAttribute('src');\n                video.load();\n            }\n\n            function playFromPayload(payload) {\n                const mediaUrl = normalizeMediaUrl(payload?.mediaUrl || payload?.mediaPath || '');\n                if (!mediaUrl) {\n                    return;\n                }\n\n                const matchId = String(payload?.matchId || '');\n                const playedAt = Number(payload?.playedAt || 0);\n                const token = matchId + '|' + playedAt + '|' + mediaUrl;\n                if (token && token === lastToken) {\n                    return;\n                }\n                lastToken = token;\n\n                stopVideo(true);\n                const cacheBust = mediaUrl.includes('?') ? '&' : '?';\n                video.src = mediaUrl + cacheBust + 't=' + Date.now();\n                video.currentTime = 0;\n                root.classList.remove('ready');\n\n                const reveal = () => {\n                    root.classList.add('ready');\n                    video.play().catch(() => {});\n                };\n\n                video.addEventListener('loadeddata', reveal, { once: true });\n                video.addEventListener('canplay', reveal, { once: true });\n            }\n\n            video.addEventListener('ended', () => {\n                stopVideo(false);\n            });\n\n            video.addEventListener('error', () => {\n                stopVideo(false);\n            });\n\n            const socket = io();\n            socket.on('highlight-reel-play', (payload) => {\n                playFromPayload(payload || {});\n            });\n        })();\n    <\/script>\n</body>\n</html>`;
+  // Two stacked <video> elements rather than one: a looped reel (the
+  // Loop/Stop Loop controls) needs to restart seamlessly, and a single
+  // element has nowhere to dissolve from -- it has to pause, seek to 0, and
+  // play again, which is a visible stutter/black-frame at best. With two
+  // elements, the idle one preloads the same clip from 0 while the visible
+  // one is still finishing, and a short opacity crossfade swaps them right
+  // as the first one ends, so a loop reads as one continuous reel rather
+  // than a repeated cut through black. A non-looped reel still just fades
+  // out to nothing on 'ended', same as before.
+  return `<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Rocket Cast Highlight Reels</title>
+    <style>
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: transparent;
+        }
+
+        #reel-root {
+            position: fixed;
+            inset: 0;
+            background: transparent;
+        }
+
+        .reel-video {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: transparent;
+            opacity: 0;
+            transition: opacity 450ms ease;
+        }
+
+        .reel-video.is-visible {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div id="reel-root">
+        <video id="reel-video-a" class="reel-video" playsinline></video>
+        <video id="reel-video-b" class="reel-video" playsinline></video>
+    </div>
+
+    <script src="/socket.io/socket.io.js"><\/script>
+    <script>
+        (() => {
+            const CROSSFADE_SEC = 0.45;
+            const videos = [document.getElementById('reel-video-a'), document.getElementById('reel-video-b')];
+            const mediaOrigin = 'http://localhost:${mediaHttpPort}';
+            let activeIndex = 0;
+            let lastToken = '';
+            let looping = false;
+            let crossfadeStarted = false;
+            let hideTimer = null;
+
+            const activeVideo = () => videos[activeIndex];
+            const idleVideo = () => videos[1 - activeIndex];
+
+            function normalizeMediaUrl(value) {
+                const raw = String(value || '').trim();
+                if (!raw) return '';
+                if (raw.startsWith('/media/')) return mediaOrigin + raw;
+                if (raw.startsWith('/')) return mediaOrigin + raw;
+
+                if (raw.startsWith('http://') || raw.startsWith('https://')) {
+                    try {
+                        const parsed = new URL(raw);
+                        if (parsed.pathname.startsWith('/media/')) {
+                            parsed.protocol = 'http:';
+                            parsed.hostname = 'localhost';
+                            parsed.port = String(${mediaHttpPort});
+                            return parsed.toString();
+                        }
+                        return raw;
+                    } catch {
+                        return raw;
+                    }
+                }
+
+                return mediaOrigin + '/media/' + raw;
+            }
+
+            function clearHideTimer() {
+                if (hideTimer) {
+                    clearTimeout(hideTimer);
+                    hideTimer = null;
+                }
+            }
+
+            // A hard stop -- an explicit Stop Loop, a play error, or a
+            // non-looped reel reaching its natural end. Fades whatever is
+            // visible out to nothing and drops both elements' sources.
+            function stopAll(immediate = false) {
+                clearHideTimer();
+                looping = false;
+                crossfadeStarted = false;
+                lastToken = '';
+                videos.forEach(v => v.classList.remove('is-visible'));
+                const clear = () => videos.forEach(v => {
+                    v.pause();
+                    v.removeAttribute('src');
+                    v.load();
+                });
+                if (immediate) clear();
+                else hideTimer = setTimeout(clear, 460);
+            }
+
+            // Attaching (or re-attaching) this is what makes a given
+            // <video> element loop: named handlers so a video reused on its
+            // next turn gets its old listeners replaced, not stacked.
+            function watchForLoopRestart(video, mediaUrl) {
+                if (video._onTimeUpdate) video.removeEventListener('timeupdate', video._onTimeUpdate);
+                if (video._onEnded) video.removeEventListener('ended', video._onEnded);
+
+                video._onTimeUpdate = () => {
+                    if (!looping || crossfadeStarted) return;
+                    if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+                    if (video.duration - video.currentTime <= CROSSFADE_SEC) {
+                        crossfadeStarted = true;
+                        crossfadeRestart(mediaUrl);
+                    }
+                };
+                video._onEnded = () => {
+                    if (looping) {
+                        // A short clip or a dropped timeupdate tick can reach
+                        // 'ended' before the crossfade watch caught it -- still
+                        // loop instead of going dark for one cycle.
+                        if (!crossfadeStarted) {
+                            crossfadeStarted = true;
+                            crossfadeRestart(mediaUrl);
+                        }
+                    } else {
+                        stopAll(false);
+                    }
+                };
+                video.addEventListener('timeupdate', video._onTimeUpdate);
+                video.addEventListener('ended', video._onEnded);
+            }
+
+            // Dissolves from the currently-visible video into a fresh copy of
+            // the same clip on the idle one, restarted from 0 -- the loop
+            // restart itself, entirely client-side once a play event has
+            // set looping=true.
+            function crossfadeRestart(mediaUrl) {
+                // Strip the outgoing video's own watch immediately: it keeps
+                // playing (and firing timeupdate) for the rest of this
+                // crossfade, and crossfadeStarted resets to false below the
+                // moment the incoming video is ready so *it* can loop on its
+                // own next cycle -- without this, that reset briefly
+                // un-blocks the still-attached outgoing handler too, which
+                // reads as "still within the last 0.45s" and fires a second,
+                // overlapping restart.
+                const outgoingNow = activeVideo();
+                if (outgoingNow._onTimeUpdate) outgoingNow.removeEventListener('timeupdate', outgoingNow._onTimeUpdate);
+                if (outgoingNow._onEnded) outgoingNow.removeEventListener('ended', outgoingNow._onEnded);
+                outgoingNow._onTimeUpdate = null;
+                outgoingNow._onEnded = null;
+
+                const incoming = idleVideo();
+                incoming.src = mediaUrl;
+                incoming.currentTime = 0;
+                watchForLoopRestart(incoming, mediaUrl);
+
+                // 'loadeddata' and 'canplay' both get a shot at this below (the
+                // first to fire wins, same as the initial-play reveal further
+                // down) -- but unlike that one, this reveal flips activeIndex
+                // and schedules a pause, so running it twice would flip the
+                // index right back and schedule a second pause against the
+                // wrong video. This guard is what keeps it to one run.
+                let revealed = false;
+                const reveal = () => {
+                    if (revealed) return;
+                    revealed = true;
+                    incoming.play().catch(() => {});
+                    incoming.classList.add('is-visible');
+                    const outgoing = activeVideo();
+                    outgoing.classList.remove('is-visible');
+                    activeIndex = 1 - activeIndex;
+                    crossfadeStarted = false;
+                    setTimeout(() => outgoing.pause(), CROSSFADE_SEC * 1000 + 80);
+                };
+                incoming.addEventListener('loadeddata', reveal, { once: true });
+                incoming.addEventListener('canplay', reveal, { once: true });
+            }
+
+            function playFromPayload(payload) {
+                const rawMediaUrl = normalizeMediaUrl(payload?.mediaUrl || payload?.mediaPath || '');
+                if (!rawMediaUrl) return;
+
+                const matchId = String(payload?.matchId || '');
+                const playedAt = Number(payload?.playedAt || 0);
+                const token = matchId + '|' + playedAt + '|' + rawMediaUrl;
+                if (token && token === lastToken) return;
+                lastToken = token;
+                looping = Boolean(payload?.loop);
+                crossfadeStarted = false;
+                clearHideTimer();
+
+                const cacheBust = rawMediaUrl.includes('?') ? '&' : '?';
+                const mediaUrl = rawMediaUrl + cacheBust + 't=' + Date.now();
+
+                idleVideo().classList.remove('is-visible');
+                idleVideo().pause();
+
+                const video = activeVideo();
+                video.src = mediaUrl;
+                video.currentTime = 0;
+                video.classList.remove('is-visible');
+                watchForLoopRestart(video, mediaUrl);
+
+                const reveal = () => {
+                    video.classList.add('is-visible');
+                    video.play().catch(() => {});
+                };
+                video.addEventListener('loadeddata', reveal, { once: true });
+                video.addEventListener('canplay', reveal, { once: true });
+            }
+
+            videos.forEach(v => v.addEventListener('error', () => stopAll(false)));
+
+            const socket = io();
+            socket.on('highlight-reel-play', (payload) => {
+                playFromPayload(payload || {});
+            });
+            socket.on('highlight-reel-stop', () => {
+                stopAll(false);
+            });
+        })();
+    <\/script>
+</body>
+</html>`;
 }
 
 posthog || console.log("PostHog disabled: POSTHOG_API_KEY not set."),
@@ -720,7 +959,7 @@ app.use((req, res, next) => {
   res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://platform.twitter.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://pbs.twimg.com https://abs.twimg.com; media-src 'self' blob:; connect-src 'self' ws: wss: https://cdn.syndication.twimg.com https://syndication.twitter.com; font-src 'self' data:; frame-src 'self' https://platform.twitter.com https://vdo.ninja; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'");
   const requestPath = decodeURIComponent(req.path || ""), pathParts = requestPath.split("/").filter(Boolean);
   "/browser-source" === requestPath || requestPath.startsWith("/overlays/") || pathParts.length > 0 && overlayRegistry?.has(pathParts[0]) ? res.setHeader("X-Frame-Options", "SAMEORIGIN") : res.setHeader("X-Frame-Options", "DENY"),
-  "/api/web/billing/webhook" !== req.path ? /^\/api\/matches\/[^/]+\/clips\/[^/]+\/upload$/.test(String(req.path || "")) ? next() : express.json({
+  "/api/web/billing/webhook" !== req.path ? /^\/api\/matches\/[^/]+\/clips\/[^/]+\/upload$/.test(String(req.path || "")) || "/api/overlays/granted/install-file" === req.path ? next() : express.json({
     limit: "100kb"
   })(req, res, next) : next();
 // A generous, broad backstop -- 240 requests/min per IP across every /api
@@ -812,7 +1051,11 @@ app.use((req, res, next) => {
     });
   }
 }), app.use(express.static(path.join(appPath, "public"))), app.use("/media", (req, res, next) => {
-  if (mediaHttpPort !== controlHttpPort) {
+  // Overlays on this port (OBS, the loader) may only load media from their
+  // own origin (CSP media-src 'self'), so serve this PC's own requests here
+  // directly -- that's how the last-game reel plays in an overlay. LAN/tunnel
+  // guests still get redirected, which keeps recorded clips off the shared port.
+  if (mediaHttpPort !== controlHttpPort && isGuestOriginRequest(req.headers?.host, req.socket?.remoteAddress)) {
     const queryIndex = String(req.originalUrl || "").indexOf("?"), querySuffix = queryIndex >= 0 ? String(req.originalUrl || "").slice(queryIndex) : "", target = `http://localhost:${mediaHttpPort}${req.path}${querySuffix}`;
     return void res.redirect(302, target);
   }
@@ -1426,6 +1669,36 @@ bracketApp.use((req, res, next) => {
 fs.mkdirSync(customOverlaysDir, {
   recursive: !0
 });
+
+const grantedOverlaysManifestPath = path.join(userDataPath, "granted-overlays.json");
+
+function loadGrantedOverlaysManifest() {
+  const data = readJsonFileSafe(grantedOverlaysManifestPath, { overlays: [] });
+  return Array.isArray(data.overlays) ? data.overlays : [];
+}
+
+function saveGrantedOverlaysManifest(overlays) {
+  try {
+    fs.writeFileSync(grantedOverlaysManifestPath, JSON.stringify({ overlays: overlays }, null, 2), "utf-8");
+  } catch {}
+}
+
+// Collapses a server-supplied overlay name down to a single safe path
+// segment -- it becomes a literal folder name under customOverlaysDir, so it
+// can never be allowed to escape that directory (no slashes, no "..").
+function safeOverlayFolderName(name) {
+  return String(name || "").trim().replace(/[\\/]+/g, "-").replace(/\.\./g, "").slice(0, 120);
+}
+
+// Same idea for a file's relative path within its overlay folder: strip any
+// segment that could climb out (".."), then confirm the resolved path is
+// still inside baseDir before ever touching the filesystem with it.
+function safeRelativeFilePath(baseDir, relPath) {
+  const cleaned = String(relPath || "").replace(/\\/g, "/").split("/").filter(part => part && ".." !== part).join("/");
+  if (!cleaned) return null;
+  const resolvedBase = path.resolve(baseDir), resolved = path.resolve(resolvedBase, cleaned);
+  return resolved === resolvedBase || resolved.startsWith(resolvedBase + path.sep) ? resolved : null;
+}
 
 let overlayRegistry = new Map, analyticsStore = {
   events: []
@@ -2193,6 +2466,7 @@ function installRocketCastPlus() {
       resolveTeamNames: resolveTeamNames, toSafeNumber: toSafeNumber,
       toSafeText: toSafeText, authTokenTtlDays: authTokenTtlDays,
       userDataPath: userDataPath, winsNeeded: winsNeeded,
+      listAllOverlays: listAllOverlays,
       // Read through getters: the media-storage settings and the port binder
       // move these at runtime, so a copy taken at install time would go stale.
       get mediaRootPath() { return mediaRootPath; },
@@ -2329,6 +2603,39 @@ app.post("/api/analytics/event", (req, res) => {
     source: overlay.source
   }));
   res.json(overlays);
+// Granted overlays: overlays an admin pushed to this account from the
+// server-side overlay library (see server-plus.js). The manifest here is
+// this machine's own record of which of THOSE overlays it has installed,
+// so a later revoke knows what to remove without touching anything the
+// user added to customOverlaysDir themselves.
+}), app.get("/api/overlays/granted", (req, res) => {
+  res.json({ ok: !0, overlays: loadGrantedOverlaysManifest() });
+}), app.post("/api/overlays/granted/install-file", (req, res) => {
+  const overlayId = String(req.body?.overlayId || "").trim(), name = safeOverlayFolderName(req.body?.name), relPath = String(req.body?.relativePath || "").trim(), contentBase64 = String(req.body?.contentBase64 || "");
+  if (!overlayId || !name || !relPath) return void res.status(400).json({ ok: !1, error: "Missing overlayId, name or relativePath" });
+  const overlayDir = path.join(customOverlaysDir, name), targetPath = safeRelativeFilePath(overlayDir, relPath);
+  if (!targetPath) return void res.status(400).json({ ok: !1, error: "Invalid file path" });
+  try {
+    ensureDirSafe(path.dirname(targetPath)), fs.writeFileSync(targetPath, Buffer.from(contentBase64, "base64"));
+    const manifest = loadGrantedOverlaysManifest();
+    manifest.some(entry => entry.overlayId === overlayId) || manifest.push({
+      overlayId: overlayId, name: name, installedAt: Date.now()
+    }), saveGrantedOverlaysManifest(manifest), res.json({ ok: !0 });
+  } catch (error) {
+    res.status(500).json({ ok: !1, error: error.message || "Failed to install overlay file" });
+  }
+}), app.post("/api/overlays/granted/uninstall", (req, res) => {
+  const overlayId = String(req.body?.overlayId || "").trim();
+  if (!overlayId) return void res.status(400).json({ ok: !1, error: "Missing overlayId" });
+  const manifest = loadGrantedOverlaysManifest(), entry = manifest.find(e => e.overlayId === overlayId);
+  if (!entry) return void res.json({ ok: !0 });
+  try {
+    fs.rmSync(path.join(customOverlaysDir, entry.name), { recursive: !0, force: !0 });
+  } catch {}
+  saveGrantedOverlaysManifest(manifest.filter(e => e.overlayId !== overlayId)), refreshOverlayRegistry(),
+  res.json({ ok: !0 });
+}), app.post("/api/overlays/granted/refresh", (req, res) => {
+  refreshOverlayRegistry(), res.json({ ok: !0 });
 }), app.get("/api/overlays/active", (req, res) => {
   const active = getActiveOverlaySummary();
   res.json({
@@ -2409,7 +2716,7 @@ app.use((req, res, next) => {
   let overlay = overlayRegistry.get(overlayName);
   if (overlay || (refreshOverlayRegistry(), overlay = overlayRegistry.get(overlayName)), 
   !overlay) return void next();
-  const overlayRoot = overlay.directory, universalHighlightReelBootstrap = `\n<script>\n(() => {\n    if (window.__RC_UNIVERSAL_REEL_INSTALLED__) return;\n    window.__RC_UNIVERSAL_REEL_INSTALLED__ = true;\n\n    const REEL_ORIGIN = 'http://localhost:${mediaHttpPort}';\n    const CONTROL_ORIGIN = 'http://localhost:${controlHttpPort}';\n    const LAYER_ID = 'rc-universal-highlight-reel-layer';\n    const VIDEO_ID = 'rc-universal-highlight-reel-video';\n    let hideTimer = null;\n    let lastToken = '';\n\n    function normalizeMediaUrl(value) {\n        const raw = String(value || '').trim();\n        if (!raw) return '';\n\n        if (raw.startsWith('/media/')) return REEL_ORIGIN + raw;\n        if (raw.startsWith('/')) return REEL_ORIGIN + raw;\n\n        if (raw.startsWith('http://') || raw.startsWith('https://')) {\n            try {\n                const parsed = new URL(raw);\n                if (parsed.pathname.startsWith('/media/')) {\n                    parsed.protocol = 'http:';\n                    parsed.hostname = 'localhost';\n                    parsed.port = String(${mediaHttpPort});\n                    return parsed.toString();\n                }\n                return raw;\n            } catch {\n                return raw;\n            }\n        }\n\n        return REEL_ORIGIN + '/media/' + raw;\n    }\n\n    function ensureLayer() {\n        let layer = document.getElementById(LAYER_ID);\n        let video = document.getElementById(VIDEO_ID);\n        if (layer && video) return { layer, video };\n\n        layer = document.createElement('div');\n        layer.id = LAYER_ID;\n        layer.style.position = 'fixed';\n        layer.style.inset = '0';\n        layer.style.background = 'transparent';\n        layer.style.opacity = '0';\n        layer.style.transition = 'opacity 420ms ease';\n        layer.style.display = 'none';\n        layer.style.zIndex = '2147483647';\n        layer.style.pointerEvents = 'none';\n\n        video = document.createElement('video');\n        video.id = VIDEO_ID;\n        video.playsInline = true;\n        video.style.position = 'absolute';\n        video.style.inset = '0';\n        video.style.width = '100%';\n        video.style.height = '100%';\n        video.style.objectFit = 'cover';\n        video.style.background = 'transparent';\n        video.addEventListener('ended', () => {\n            stopPlayback(false);\n        });\n        video.addEventListener('error', () => {\n            stopPlayback(false);\n        });\n\n        layer.appendChild(video);\n        document.body.appendChild(layer);\n        return { layer, video };\n    }\n\n    function stopPlayback(immediate = false) {\n        const refs = ensureLayer();\n        if (hideTimer) {\n            clearTimeout(hideTimer);\n            hideTimer = null;\n        }\n\n        if (!immediate) {\n            refs.layer.style.opacity = '0';\n            hideTimer = setTimeout(() => {\n                refs.video.pause();\n                refs.video.removeAttribute('src');\n                refs.video.load();\n                refs.layer.style.display = 'none';\n                refs.layer.style.opacity = '0';\n            }, 430);\n            return;\n        }\n\n        refs.video.pause();\n        refs.video.removeAttribute('src');\n        refs.video.load();\n        refs.layer.style.display = 'none';\n        refs.layer.style.opacity = '0';\n    }\n\n    function startPlayback(payload) {\n        if (typeof window.playHighlightReel === 'function') {\n            window.playHighlightReel(payload || {});\n            return;\n        }\n\n        const refs = ensureLayer();\n        const mediaUrl = normalizeMediaUrl(payload?.mediaUrl || payload?.mediaPath || '');\n        if (!mediaUrl) return;\n\n        stopPlayback(true);\n        const cacheBust = mediaUrl.includes('?') ? '&' : '?';\n        refs.video.src = mediaUrl + cacheBust + 't=' + Date.now();\n        refs.layer.style.display = 'block';\n        refs.layer.style.opacity = '0';\n        refs.video.currentTime = 0;\n\n        let revealed = false;\n        const reveal = () => {\n            if (revealed) return;\n            revealed = true;\n            refs.layer.style.opacity = '1';\n            refs.video.play().catch(() => {\n                stopPlayback(true);\n            });\n        };\n\n        refs.video.addEventListener('loadeddata', reveal, { once: true });\n        refs.video.addEventListener('canplay', reveal, { once: true });\n\n        // No duration-based auto-stop here; let the reel run full length.\n        // Playback stops naturally on the video 'ended' event.\n    }\n\n    function handleHighlightReelPlay(payload) {\n        const matchId = String(payload?.matchId || '');\n        const playedAt = Number(payload?.playedAt || 0);\n        const source = String(payload?.mediaUrl || payload?.mediaPath || '');\n        const token = matchId + '|' + playedAt + '|' + source;\n        if (token && token === lastToken) return;\n        lastToken = token;\n        startPlayback(payload || {});\n    }\n\n    function attachSocket(origin) {\n        if (typeof io !== 'function') return;\n        try {\n            const socket = origin ? io(origin) : io();\n            socket.on('highlight-reel-play', (payload) => {\n                handleHighlightReelPlay(payload || {});\n            });\n        } catch {}\n    }\n\n    attachSocket();\n    if (REEL_ORIGIN !== CONTROL_ORIGIN) {\n        attachSocket(REEL_ORIGIN);\n    }\n})();\n<\/script>`;
+  const overlayRoot = overlay.directory, universalHighlightReelBootstrap = `\n<script>\n(() => {\n    if (window.__RC_UNIVERSAL_REEL_INSTALLED__) return;\n    window.__RC_UNIVERSAL_REEL_INSTALLED__ = true;\n\n    const LAYER_ID = 'rc-universal-highlight-reel-layer';\n    const VIDEO_ID = 'rc-universal-highlight-reel-video';\n    let hideTimer = null;\n    let lastToken = '';\n\n    function normalizeMediaUrl(value) {\n        const raw = String(value || '').trim();\n        if (!raw) return '';\n\n        // Same-origin /media/... -- the overlay's CSP (media-src 'self') blocks\n        // loading the video from the media port.\n        if (raw.startsWith('/')) return raw;\n\n        if (raw.startsWith('http://') || raw.startsWith('https://')) {\n            try {\n                const parsed = new URL(raw);\n                return parsed.pathname.startsWith('/media/') ? parsed.pathname + parsed.search : raw;\n            } catch {\n                return raw;\n            }\n        }\n\n        return '/media/' + raw;\n    }\n\n    function ensureLayer() {\n        let layer = document.getElementById(LAYER_ID);\n        let video = document.getElementById(VIDEO_ID);\n        if (layer && video) return { layer, video };\n\n        layer = document.createElement('div');\n        layer.id = LAYER_ID;\n        layer.style.position = 'fixed';\n        layer.style.inset = '0';\n        layer.style.background = 'transparent';\n        layer.style.opacity = '0';\n        layer.style.transition = 'opacity 420ms ease';\n        layer.style.display = 'none';\n        layer.style.zIndex = '2147483647';\n        layer.style.pointerEvents = 'none';\n\n        video = document.createElement('video');\n        video.id = VIDEO_ID;\n        video.playsInline = true;\n        video.style.position = 'absolute';\n        video.style.inset = '0';\n        video.style.width = '100%';\n        video.style.height = '100%';\n        video.style.objectFit = 'cover';\n        video.style.background = 'transparent';\n        video.addEventListener('ended', () => {\n            stopPlayback(false);\n        });\n        video.addEventListener('error', () => {\n            stopPlayback(false);\n        });\n\n        layer.appendChild(video);\n        document.body.appendChild(layer);\n        return { layer, video };\n    }\n\n    function stopPlayback(immediate = false) {\n        const refs = ensureLayer();\n        if (hideTimer) {\n            clearTimeout(hideTimer);\n            hideTimer = null;\n        }\n\n        if (!immediate) {\n            refs.layer.style.opacity = '0';\n            hideTimer = setTimeout(() => {\n                refs.video.pause();\n                refs.video.removeAttribute('src');\n                refs.video.load();\n                refs.layer.style.display = 'none';\n                refs.layer.style.opacity = '0';\n            }, 430);\n            return;\n        }\n\n        refs.video.pause();\n        refs.video.removeAttribute('src');\n        refs.video.load();\n        refs.layer.style.display = 'none';\n        refs.layer.style.opacity = '0';\n    }\n\n    function startPlayback(payload) {\n        if (typeof window.playHighlightReel === 'function') {\n            window.playHighlightReel(payload || {});\n            return;\n        }\n\n        const refs = ensureLayer();\n        const mediaUrl = normalizeMediaUrl(payload?.mediaUrl || payload?.mediaPath || '');\n        if (!mediaUrl) return;\n\n        stopPlayback(true);\n        const cacheBust = mediaUrl.includes('?') ? '&' : '?';\n        refs.video.src = mediaUrl + cacheBust + 't=' + Date.now();\n        refs.layer.style.display = 'block';\n        refs.layer.style.opacity = '0';\n        refs.video.currentTime = 0;\n\n        let revealed = false;\n        const reveal = () => {\n            if (revealed) return;\n            revealed = true;\n            refs.layer.style.opacity = '1';\n            refs.video.play().catch(() => {\n                stopPlayback(true);\n            });\n        };\n\n        refs.video.addEventListener('loadeddata', reveal, { once: true });\n        refs.video.addEventListener('canplay', reveal, { once: true });\n\n        // No duration-based auto-stop here; let the reel run full length.\n        // Playback stops naturally on the video 'ended' event.\n    }\n\n    function handleHighlightReelPlay(payload) {\n        const matchId = String(payload?.matchId || '');\n        const playedAt = Number(payload?.playedAt || 0);\n        const source = String(payload?.mediaUrl || payload?.mediaPath || '');\n        const token = matchId + '|' + playedAt + '|' + source;\n        if (token && token === lastToken) return;\n        lastToken = token;\n        startPlayback(payload || {});\n    }\n\n    function attachSocket(origin) {\n        if (typeof io !== 'function') return;\n        try {\n            const socket = origin ? io(origin) : io();\n            socket.on('highlight-reel-play', (payload) => {\n                handleHighlightReelPlay(payload || {});\n            });\n        } catch {}\n    }\n\n    // Overlays only take reels sent to the control port (the last-game reel);\n    // every other reel plays on the media port's own player, not here.\n    attachSocket();\n})();\n<\/script>`;
   if (1 === pathParts.length) {
     if (!requestPath.endsWith("/")) return void res.redirect(302, `${requestPath}/`);
     const overlayHtmlPath = path.join(overlayRoot, "overlay.html");
@@ -2568,6 +2875,8 @@ io.use(async (socket, next) => {
   console.log("🌐 Browser connected"), recordAnalyticsEvent("panel_connected", socket.id, {
     transport: socket.conn?.transport?.name || "unknown"
   }), Object.keys(lastOverrides).length && socket.emit("overrides", lastOverrides), lastOverlayDetection && socket.emit("overlay-detection", lastOverlayDetection);
+  // The overlay announces its stats screen; the panel uses it for reel autoplay.
+  socket.on("statsWallShown", announceStatsWall);
   const isGuestSeat = lanServerState.hosting && isGuestOriginRequest(socket.handshake?.headers?.host, socket.handshake?.address);
   isGuestSeat && lanServerState.connectedGuestSeats.set(socket.id, {
     username: String(socket.handshake?.auth?.username || "").trim() || "Guest",
@@ -2697,6 +3006,15 @@ function trackReplayTimingFromPacket(packet) {
   }));
 }
 
+// Reel autoplay keys off the overlay's stats screen. RLCS and XPL Dig announce
+// theirs (statsWallShown); for any overlay that never does, 15s after
+// MatchEnded counts as its stats screen.
+let statsWallFallbackTimer = null;
+
+function announceStatsWall() {
+  clearTimeout(statsWallFallbackTimer), statsWallFallbackTimer = null, io.emit("stats-wall-shown");
+}
+
 function tryEmitPacket(raw) {
   let parsed;
   if ("string" == typeof raw) {
@@ -2709,6 +3027,8 @@ function tryEmitPacket(raw) {
     }
   } else parsed = raw;
   const normalized = normalizePacket(parsed);
+  normalized && "MatchEnded" === (normalized.Event || normalized.event) && (clearTimeout(statsWallFallbackTimer),
+  statsWallFallbackTimer = setTimeout(announceStatsWall, 15e3)),
   normalized && (rlGoodEndpointIndex = rlEndpointIndex, trackReplayTimingFromPacket(normalized),
   trackMatchHistoryFromPacket(normalized), notifyHypeChamberMatchEvent(normalized), rlPacketShapeLogged || (rlPacketShapeLogged = !0,
   console.log("🎮 First Rocket League packet keys:", Object.keys(normalized.Data || normalized).join(", "))), 

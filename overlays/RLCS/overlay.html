@@ -718,6 +718,8 @@ html{
   position:relative
 }
 #pc-boost-box{
+  width:360px;
+  box-sizing:border-box;
   display:flex;
   align-items:center;
   padding:0 16px 0 14px;
@@ -737,6 +739,8 @@ html{
   text-transform:uppercase;
   color:#fff;
   white-space:nowrap;
+  min-width:0;
+  overflow:hidden;
   transform:translateY(-2px);
   position:relative;
   z-index:1
@@ -1224,7 +1228,10 @@ html{
   display:flex;
   align-items:stretch;
   justify-content:center;
-  opacity:0;
+  /* Not 0: Chromium (and OBS's browser source) stops drawing video in a fully
+     transparent layer, so a camera shown again flashes a stale frame first.
+     .001 rounds to nothing in 8-bit output but keeps every stream live. */
+  opacity:.001;
   pointer-events:none;
   transform:translateX(0) scale(.96);
   transition:opacity .28s ease,transform .58s cubic-bezier(.16, .84, .25, 1)
@@ -1234,38 +1241,27 @@ html{
   pointer-events:auto;
   transform:translateX(0) scale(1)
 }
-.camera-shell.replay-shell{
-  width:360px;
-  height:202px;
-  top:204px;
-  border-radius:0;
-  border:0;
-  box-shadow:none;
-  background:#000
-}
-.camera-shell.replay-shell.team1{
+.camera-shell.flare.team1{
   left:0;
   transform:translateX(-118%) scale(.96)
 }
-.camera-shell.replay-shell.team2{
+.camera-shell.flare.team2{
   right:0;
   transform:translateX(118%) scale(.96)
 }
-.camera-shell.replay-shell.is-visible{
-  transform:translateX(0) scale(1)
+.camera-shell.card{
+  left:0;
+  bottom:52px;
+  width:360px;
+  height:202px;
+  box-sizing:border-box;
+  border-top:3px solid currentColor;
+  transform:none;
+  transition:none
 }
-.camera-shell.win-shell{
-  width:min(74vw,1120px);
-  height:min(70vh,625px);
-  left:50%;
-  top:50%;
-  transform:translate(-50%,-50%) scale(.94);
-  border-radius:24px;
-  border:4px solid rgba(255,255,255,.18);
-  box-shadow:0 24px 80px rgba(0,0,0,.48)
-}
-.camera-shell.win-shell.is-visible{
-  transform:translate(-50%,-50%) scale(1)
+.camera-shell.flare.is-visible,
+.camera-shell.card.is-visible{
+  transform:none
 }
 .camera-shell iframe{
   width:100%;
@@ -1273,6 +1269,12 @@ html{
   border:0;
   background:#000;
   display:block
+}
+.camera-shell.team1{
+  color:var(--cam-team1,#21afd7)
+}
+.camera-shell.team2{
+  color:var(--cam-team2,#fd5b00)
 }
 .camera-strip{
   position:absolute;
@@ -1289,44 +1291,31 @@ html{
 .camera-shell.team2 .camera-strip{
   left:-24px
 }
-.camera-lower-third{
+.camera-name{
   position:absolute;
-  left:24px;
-  right:24px;
-  bottom:24px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:16px;
-  padding:14px 18px;
-  border-radius:16px;
+  left:0;
+  bottom:0;
+  z-index:2;
+  max-width:100%;
+  padding:3px 10px;
   background:rgba(2,4,10,.76);
-  backdrop-filter:blur(10px);
-  border:1px solid rgba(255,255,255,.2)
-}
-.camera-team-name{
-  font-size:30px;
-  font-weight:900;
+  font-family:BourgeoisBold,sans-serif;
   font-style:italic;
-  text-transform:uppercase;
+  font-size:18px;
+  letter-spacing:.06em;
   color:#fff;
-  letter-spacing:.08em;
-  text-shadow:0 2px 14px rgba(0,0,0,.65)
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis
 }
-.camera-logo-wrap{
-  width:88px;
-  height:88px;
-  border-radius:18px;
-  background:rgba(255,255,255,.09);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  overflow:hidden
+.camera-shell.team2 .camera-name{
+  left:auto;
+  right:0
 }
-.camera-logo-wrap img{
-  width:100%;
-  height:100%;
-  object-fit:contain
+#camera-layer.no-names .camera-name,
+.camera-shell.card .camera-strip,
+.camera-shell.card .camera-name{
+  display:none
 }
 #stats-wall{
   position:absolute;
@@ -2179,11 +2168,11 @@ let isReplayActive = !1;
 
 function closeSlides() {
   $("blue-slide").classList.remove("open"), $("orange-slide").classList.remove("open"), 
-  $("hud-outer").classList.remove("expanded"), slideOpen = !1, updateHeaderText();
+  $("hud-outer").classList.remove("expanded"), slideOpen = !1, updateHeaderText(), hideCameraFlare();
 }
 
 function applyUpdateState(e) {
-  const t = e.Game || {}, a = t.Teams || [], o = e.Players || [], s = t.Target && t.Target.Name ? t.Target.Name : "";
+  const t = e.Game || {}, a = t.Teams || [], o = lastGamePlayers = e.Players || [], s = t.Target && t.Target.Name ? t.Target.Name : "";
   a.forEach(e => {
     0 === e.TeamNum ? gameBlueTeamName = e.Name || "BLUE" : 1 === e.TeamNum && (gameOrangeTeamName = e.Name || "ORANGE");
   }), !1 !== OV.showHud && $("hud").classList.add("visible"), !1 !== OV.showNameplates && ($("blue-col").classList.add("visible"), $("orange-col").classList.add("visible"));
@@ -2215,7 +2204,7 @@ function applyUpdateState(e) {
     e > 0 && (ballSpeedHistory.push(e), ballSpeedHistory.length > 5 && ballSpeedHistory.shift()), 
     d || (lastBallSpeed = e);
   }
-  isReplayActive = d, !wasReplayActive && d && onReplayStart(), wasReplayActive && !d && onGoalReplayEnd(), 
+  isReplayActive = d, !wasReplayActive && d && !OV.matchReplayMode && onReplayStart(), wasReplayActive && !d && onGoalReplayEnd(),
   wasReplayActive = d;
   const m = renderCol($("blue-col"), o.filter(e => 0 === e.TeamNum), s), u = renderCol($("orange-col"), o.filter(e => 1 === e.TeamNum), s);
   d || m || u || hidePlayerCard(), swCaptureStats(o, prevBlue, prevOrange);
@@ -2224,23 +2213,23 @@ function applyUpdateState(e) {
 let goalScorerName = "", goalScorerTeam = -1, goalAssistName = "", goalSpeedSnapshot = 0, wasReplayActive = !1;
 
 function showGoal(e) {
+  // Rocket League re-sends GoalScored when the replay shows the ball going in.
+  // Ignore it while this goal's slides/cameras are already out -- re-running
+  // would close and instantly reopen them. They stay until RoundStarted.
+  if (slideOpen) return;
   closeSlides(), $("blue-slide").classList.add("open"), $("orange-slide").classList.add("open"), 
   $("hud-outer").classList.add("expanded"), slideOpen = !0, updateHeaderText(), e && e.Scorer ? (goalScorerName = e.Scorer.Name.toUpperCase(), 
   goalScorerTeam = e.Scorer.TeamNum ?? -1, goalSpeedSnapshot = Math.round(e.GoalSpeed ?? 0), 
   goalAssistName = e.Assister && e.Assister.Name ? e.Assister.Name.toUpperCase() : "", 
   console.log("GoalScored data:", JSON.stringify(e)), console.log("Scorer:", goalScorerName, "Speed:", goalSpeedSnapshot, "Assister:", goalAssistName)) : (goalScorerName = "", 
   goalScorerTeam = -1, goalSpeedSnapshot = 0, goalAssistName = "");
-  const t = getCameraFeedForTeam("team1"), a = getCameraFeedForTeam("team2");
-  if (OV.onlyShowScoringTeamCamera) {
-    const e = 1 === goalScorerTeam ? a : t;
-    showCameraLayer("replay", e ? [ e ] : []);
-  } else showCameraLayer("replay", [ t, a ].filter(Boolean));
+  showCameraFlare(OV.onlyShowScoringTeamCamera ? [ 1 === goalScorerTeam ? "team2" : "team1" ] : [ "team1", "team2" ]);
 }
 
 function closeGoalSlides() {
   $("blue-slide").classList.remove("open"), $("orange-slide").classList.remove("open"), 
-  $("hud-outer").classList.remove("expanded"), slideOpen = !1, updateHeaderText(), 
-  hideCameraLayer();
+  $("hud-outer").classList.remove("expanded"), slideOpen = !1, updateHeaderText(),
+  hideCameraFlare();
 }
 
 function onReplayStart() {
@@ -2253,7 +2242,7 @@ function onReplayStart() {
   goalAssistName ? (console.log("Showing assist:", goalAssistName), $("goal-lower-assist-name").textContent = goalAssistName, 
   $("goal-lower-assist-icon").style.display = "block", $("goal-lower-assist-name").style.display = "inline") : (console.log("Hiding assist"), 
   $("goal-lower-assist-icon").style.display = "none", $("goal-lower-assist-name").style.display = "none"), 
-  $("goal-lower").classList.add("show"), $("player-card").classList.remove("show");
+  $("goal-lower").classList.add("show"), $("player-card").classList.remove("show"), hideCardCamera();
 }
 
 function onGoalReplayEnd() {
@@ -2301,9 +2290,9 @@ function updateBoostWheel(e, t) {
 }
 
 function updatePlayerCard(e, t) {
-  if (isReplayActive) return;
-  const a = $("player-card");
-  $("pc-name").textContent = e.Name.toUpperCase();
+  if (isReplayActive && !OV.matchReplayMode) return;
+  const a = $("player-card"), pcName = $("pc-name"), pcNameText = e.Name.toUpperCase();
+  pcName.textContent !== pcNameText && (pcName.textContent = pcNameText, fitPlayerCardName(pcName));
   const o = Math.round(e.Boost ?? 0);
   $("pc-boost-val").textContent = o, $("pc-boost-fill-bar").style.width = o + "%", 
   $("pc-goals").textContent = e.Goals ?? 0, $("pc-shots").textContent = e.Shots ?? 0, 
@@ -2311,11 +2300,18 @@ function updatePlayerCard(e, t) {
   $("pc-demos").textContent = e.Demolitions ?? e.Demos ?? 0;
   const s = t || "#21afd7";
   $("pc-boost-box").style.background = s, document.documentElement.style.setProperty("--pc-team-color", s), 
-  updateBoostWheel(o, s), a.classList.add("show");
+  updateBoostWheel(o, s), a.classList.add("show"), showCardCamera(e);
+}
+
+// The name box is a fixed width (so a camera can sit flush on top of it);
+// long names shrink to fit instead of stretching the card.
+function fitPlayerCardName(e) {
+  let t = 27;
+  for (e.style.fontSize = t + "px"; e.scrollWidth > e.clientWidth && t > 12; ) e.style.fontSize = --t + "px";
 }
 
 function hidePlayerCard() {
-  $("player-card").classList.remove("show"), lastSpectatedName = "";
+  $("player-card").classList.remove("show"), lastSpectatedName = "", hideCardCamera();
 }
 
 function renderCol(e, t, a) {
@@ -2423,15 +2419,6 @@ const WS_LINE_DEFS = [ {
 
 let wsState = "idle", wsPulseFrame = null, wsPulseT = 0, wsAutoTimer = null;
 
-function getCameraFeedForWinner(e) {
-  const t = Array.isArray(OV.cameras) ? OV.cameras : [], a = e ? [ "blue", "team1", "1", "b" ] : [ "orange", "team2", "2", "o" ];
-  return t.find(e => {
-    if (!e || !e.url) return !1;
-    const t = String(e.team || "").toLowerCase().replace(/\s+/g, "");
-    return a.includes(t);
-  }) || null;
-}
-
 function wsBuildLines() {
   const e = $("ws-lines");
   e.innerHTML = "", WS_LINE_DEFS.forEach(t => {
@@ -2496,25 +2483,23 @@ function wsStopPulse() {
 }
 
 function wsApplyWinner(e, t, a) {
-  const o = e ? OV.blueName || gameBlueTeamName : OV.orangeName || gameOrangeTeamName, s = e ? OV.blueColor || "#21afd7" : OV.orangeColor || "#fd5b00", n = e ? OV.blueLogo || "864-8645931_rocket-league-logo-transparent.png" : OV.orangeLogo || "864-8645931_rocket-league-logo-transparent.png", l = e ? t : a, r = e ? a : t, i = getCameraFeedForWinner(e);
-  i || hideCameraLayer();
+  const o = e ? OV.blueName || gameBlueTeamName : OV.orangeName || gameOrangeTeamName, s = e ? OV.blueColor || "#21afd7" : OV.orangeColor || "#fd5b00", n = e ? OV.blueLogo || "864-8645931_rocket-league-logo-transparent.png" : OV.orangeLogo || "864-8645931_rocket-league-logo-transparent.png", l = e ? t : a, r = e ? a : t;
   const c = o.indexOf(" ");
   return $("ws-team-name").innerHTML = -1 !== c ? escapeHtml(o.slice(0, c)) + "<br>" + escapeHtml(o.slice(c + 1)) : escapeHtml(o),
   $("ws-series-score").textContent = l + " – " + r, $("ws-slab").style.background = s, 
   $("ws-accent-bar").style.background = s, $("ws-logo-img").src = n, $("ws-stage").style.setProperty("--ws-team-glow", s + "55"), 
   wsDrawHexGrid(s), wsBuildLines(), {
-    color: s,
-    feed: i
+    color: s
   };
 }
 
-function wsPlayIn(e, t) {
+function wsPlayIn(e) {
   if ("in" === wsState) return;
   wsState = "in";
   const a = $("ws-stage");
   a.classList.remove("out"), a.offsetWidth, $("ws-flash").classList.remove("pop"), 
   $("ws-flash").offsetWidth, $("ws-flash").classList.add("pop"), a.classList.add("active"), 
-  t ? showCameraLayer("win", t) : hideCameraLayer(), wsStartPulse(e), playWinSong(), 
+  hideCameraLayer(), wsStartPulse(e), playWinSong(), 
   setTimeout(() => {
     "in" === wsState && (wsState = "showing");
   }, 1400);
@@ -2537,8 +2522,8 @@ function onMatchEnded() {
     updatePips(OV.blueWins ?? 0, OV.orangeWins ?? 0), socket.emit("overrides", Object.assign({}, OV)));
   }
   if (prevBlue === prevOrange) return;
-  const e = prevBlue > prevOrange, {color: t, feed: a} = wsApplyWinner(e, prevBlue, prevOrange);
-  clearTimeout(wsAutoTimer), wsPlayIn(t, a), wsAutoTimer = setTimeout(() => wsPlayOut(), 7e3);
+  const e = prevBlue > prevOrange, {color: t} = wsApplyWinner(e, prevBlue, prevOrange);
+  clearTimeout(wsAutoTimer), wsPlayIn(t), wsAutoTimer = setTimeout(() => wsPlayOut(), 7e3);
 }
 
 function onMatchDestroyed() {
@@ -2568,19 +2553,19 @@ function stopHighlightReel(e = !1) {
   }
 }
 
+// Reels load from this overlay's own origin (/media/...): its CSP is
+// media-src 'self', so a video on the media port would be blocked.
 function normalizeHighlightMediaUrl(e) {
   const t = String(e || "").trim();
   if (!t) return "";
-  if (t.startsWith("/media/")) return `http://localhost:3001${t}`;
-  if (t.startsWith("/")) return `http://localhost:3001${t}`;
+  if (t.startsWith("/")) return t;
   if (t.startsWith("http://") || t.startsWith("https://")) try {
     const e = new URL(t);
-    return e.pathname.startsWith("/media/") ? (e.protocol = "http:", e.hostname = "localhost", 
-    e.port = "3001", e.toString()) : t;
+    return e.pathname.startsWith("/media/") ? e.pathname + e.search : t;
   } catch {
     return t;
   }
-  return `http://localhost:3001/media/${t}`;
+  return `/media/${t}`;
 }
 
 function playHighlightReel(e) {
@@ -2617,7 +2602,12 @@ function handleHighlightReelStop() {
   a && (a.loop = !1), lastHighlightReelPlayToken = "", stopHighlightReel(!1);
 }
 
-const socket = io(), reelSocket = io("http://localhost:3001");
+// Reels reach overlays on the control port only (the last-game reel); the
+// media port's player handles every other reel. This overlay plays reels
+// itself, so the marker below stops the server injecting its universal reel
+// player too -- both would play the same reel and abort each other.
+window.__RC_UNIVERSAL_REEL_INSTALLED__ = !0;
+const socket = io();
 
 let lastHighlightReelPlayToken = "";
 
@@ -2638,7 +2628,7 @@ socket.on("connect", () => {
     break;
 
    case "GoalScored":
-    showGoal(a);
+    OV.matchReplayMode || showGoal(a);
     break;
 
    case "GoalReplayEnd":
@@ -2666,135 +2656,122 @@ socket.on("connect", () => {
   }
 }), socket.on("highlight-reel-play", e => {
   handleHighlightReelPlay(e || {});
-}), reelSocket.on("highlight-reel-play", e => {
-  handleHighlightReelPlay(e || {});
 }), socket.on("highlight-reel-stop", () => {
-  handleHighlightReelStop();
-}), reelSocket.on("highlight-reel-stop", () => {
   handleHighlightReelStop();
 });
 
-let OV = {}, gameBlueTeamName = "BLUE", gameOrangeTeamName = "ORANGE", cameraLayerShells = {}, cameraLayerIframes = {};
+let OV = {}, gameBlueTeamName = "BLUE", gameOrangeTeamName = "ORANGE", cameraShells = {}, lastGamePlayers = [], camerasFlared = !1;
 
 function normalizeCameraTeam(e) {
   const t = String(e || "").toLowerCase().trim();
   return [ "blue", "team1", "1", "b" ].includes(t) ? "team1" : [ "orange", "team2", "2", "o" ].includes(t) ? "team2" : "team1";
 }
 
-function ensureCameraShellForTeam(e) {
-  const t = $("camera-layer");
-  if (!t) return null;
-  const a = "team2" === e ? "team2" : "team1";
-  if (cameraLayerShells[a]) return cameraLayerShells[a];
-  const o = document.createElement("div");
-  o.className = `camera-shell replay-shell ${a}`, o.setAttribute("aria-hidden", "true");
-  const s = document.createElement("iframe");
-  s.loading = "eager", s.allow = "camera; microphone; autoplay; clipboard-write; encrypted-media", 
-  o.appendChild(s);
-  const n = document.createElement("div");
-  return n.className = "camera-strip", o.appendChild(n), t.appendChild(o), cameraLayerShells[a] = o, 
-  cameraLayerIframes[a] = s, o;
+function getCameraFeeds() {
+  return (Array.isArray(OV.cameras) ? OV.cameras : []).filter(e => e && e.url);
 }
 
-function getCameraShells() {
-  return Object.values(cameraLayerShells);
+function getCameraFeedsForTeam(e) {
+  const t = normalizeCameraTeam(e);
+  return getCameraFeeds().filter(e => normalizeCameraTeam(e.team) === t).slice(0, 4);
 }
 
-function preloadCameraFeed(e) {
-  if (!e || !e.url) return;
-  const t = normalizeCameraTeam(e.team);
-  if (!ensureCameraShellForTeam(t)) return;
-  const a = cameraLayerIframes[t], o = String(e.url);
-  a.getAttribute("src") !== o && (a.src = o);
+function getCameraShellForFeed(e) {
+  return e ? cameraShells[String(e.id || e.url)] || null : null;
 }
 
-function getPrimaryCameraFeed() {
-  return (Array.isArray(OV.cameras) ? OV.cameras : []).find(e => e && e.url) || null;
+// A camera's player field holds an Epic username or Epic ID; the game reports
+// each player's Name and a PrimaryId like "Epic|<id>|0", so either one matches.
+function cameraMatchesPlayer(e, t) {
+  const a = String(e && e.player || "").trim().toLowerCase();
+  if (!a || !t) return !1;
+  const o = String(t.PrimaryId || "").toLowerCase();
+  return String(t.Name || "").trim().toLowerCase() === a || o === a || o.split("|").includes(a);
 }
 
-function getCameraFeedForTeam(e) {
-  const t = Array.isArray(OV.cameras) ? OV.cameras : [], a = normalizeCameraTeam(e);
-  return t.find(e => !(!e || !e.url) && normalizeCameraTeam(e.team) === a) || null;
+function getCameraFeedForPlayer(e) {
+  return getCameraFeeds().find(t => cameraMatchesPlayer(t, e)) || null;
 }
 
-function getCameraTeamIsOrange(e) {
-  return "team2" === normalizeCameraTeam(e?.team);
+// One shell + iframe per camera, built once and kept loaded so a camera shows
+// instantly. Shells are only repositioned, never re-parented -- moving an
+// iframe in the DOM reloads its stream.
+function syncCameraShells() {
+  const e = $("camera-layer");
+  if (!e) return;
+  const t = new Set;
+  getCameraFeeds().forEach(a => {
+    const o = String(a.id || a.url);
+    t.add(o);
+    let s = cameraShells[o];
+    s || (s = document.createElement("div"), s.className = "camera-shell", s.setAttribute("aria-hidden", "true"), 
+    s.innerHTML = '<iframe loading="eager" allow="camera; microphone; autoplay; clipboard-write; encrypted-media"></iframe><div class="camera-strip"></div><div class="camera-name"></div>', 
+    e.appendChild(s), cameraShells[o] = s, s.feed = a, parkCameraShell(s)), s.feed = a;
+    const n = s.querySelector("iframe"), l = String(a.url);
+    n.getAttribute("src") !== l && (n.src = l);
+  }), Object.keys(cameraShells).forEach(e => {
+    t.has(e) || (cameraShells[e].remove(), delete cameraShells[e]);
+  }), e.classList.remove("hidden");
+}
+
+function showCameraShell(e, t, a) {
+  const o = "team2" === normalizeCameraTeam(e.feed.team), n = e.classList.contains("is-visible"), l = lastGamePlayers.find(t => cameraMatchesPlayer(e.feed, t));
+  n || (e.style.transition = "none"), e.className = `camera-shell ${t} ${o ? "team2" : "team1"}` + (n ? " is-visible" : ""), Object.assign(e.style, a), 
+  n || (e.offsetWidth, e.style.transition = ""), 
+  e.querySelector(".camera-name").textContent = String(l ? l.Name : e.feed.player || "").toUpperCase(), 
+  e.setAttribute("aria-hidden", "false"), n || ("card" === t ? e.classList.add("is-visible") : requestAnimationFrame(() => requestAnimationFrame(() => {
+    "false" === e.getAttribute("aria-hidden") && e.classList.add("is-visible");
+  })));
 }
 
 function hideCameraShell(e) {
-  e && (e.classList.remove("is-visible"), e.querySelector(".camera-lower-third")?.remove(), 
-  e.classList.add("is-retracting"), window.setTimeout(() => {
-    e.classList.contains("is-visible") || (e.className = "camera-shell", e.setAttribute("aria-hidden", "true"));
-  }, 560));
+  e && (e.classList.remove("is-visible"), e.setAttribute("aria-hidden", "true"));
 }
 
-function showCameraLayer(e, t) {
-  const a = $("camera-layer");
-  if (!a) return;
-  const o = (Array.isArray(t) ? t : [ t ]).filter(e => e && e.url);
-  if (!o.length) return void hideCameraLayer();
-  if ($("stats-wall").classList.contains("show")) return void hideCameraLayer();
-  const s = {
-    team1: null,
-    team2: null
-  };
-  o.forEach(e => {
-    const t = normalizeCameraTeam(e.team);
-    s[t] || (s[t] = e);
-  });
-  const n = Boolean(s.team1 || s.team2);
-  if ("win" === e || n) {
-    if (a.classList.remove("hidden"), a.classList.remove("replay-mode", "win-mode"), 
-    a.classList.add("win" === e ? "win-mode" : "replay-mode"), "win" === e) {
-      getCameraShells().forEach(e => {
-        e && hideCameraShell(e);
-      });
-      const e = o[0], t = getCameraTeamIsOrange(e), a = t ? OV.orangeColor || "#fd5b00" : OV.blueColor || "#21afd7", s = t ? OV.orangeName || gameOrangeTeamName : OV.blueName || gameBlueTeamName, n = t ? OV.orangeLogo || null : OV.blueLogo || null, l = t ? OV.orangeAbbr || "ORG" : OV.blueAbbr || "BLU", r = ensureCameraShellForTeam(t ? "team2" : "team1");
-      preloadCameraFeed(e), r.className = "camera-shell win-shell " + (t ? "team2" : "team1"), 
-      r.style.border = `4px solid ${a}`, r.style.borderRadius = "24px", r.style.color = a, 
-      r.setAttribute("aria-hidden", "false"), r.querySelector(".camera-lower-third")?.remove();
-      const i = r.querySelector(".camera-strip");
-      i && (i.style.background = a, i.style.color = a), requestAnimationFrame(() => {
-        r.classList.remove("is-visible"), requestAnimationFrame(() => r.classList.add("is-visible"));
-      });
-      const c = document.createElement("div");
-      c.className = "camera-lower-third";
-      const d = document.createElement("div");
-      d.className = "camera-team-name", d.textContent = s.toUpperCase();
-      const m = document.createElement("div");
-      if (m.className = "camera-logo-wrap", n) {
-        const e = document.createElement("img");
-        e.src = n, e.alt = "", m.appendChild(e);
-      } else m.textContent = l.toUpperCase();
-      return c.appendChild(d), c.appendChild(m), void r.appendChild(c);
-    }
-    [ "team1", "team2" ].forEach(e => {
-      const t = s[e], a = t ? ensureCameraShellForTeam(e) : cameraLayerShells[e];
-      if (!a) return;
-      if (!t) return void hideCameraShell(a);
-      const o = "team2" === e, n = o ? OV.orangeColor || "#fd5b00" : OV.blueColor || "#21afd7";
-      o ? OV.orangeName : OV.blueName, o ? OV.orangeLogo : OV.blueLogo, o ? OV.orangeAbbr : OV.blueAbbr, 
-      preloadCameraFeed(t), a.className = `camera-shell replay-shell ${e}`, a.style.border = "0", 
-      a.style.borderRadius = "0", a.style.color = n, a.setAttribute("aria-hidden", "false"), 
-      a.querySelector(".camera-lower-third")?.remove();
-      const l = a.querySelector(".camera-strip");
-      l && (l.style.background = n, l.style.color = n), requestAnimationFrame(() => {
-        a.classList.remove("is-visible"), requestAnimationFrame(() => a.classList.add("is-visible"));
+// Scoreboard flared out (goal): every camera a team has, stacked on its side.
+function showCameraFlare(e) {
+  $("stats-wall").classList.contains("show") || (camerasFlared = !0, hideCardCamera(), [ "team1", "team2" ].forEach(t => {
+    const a = e.includes(t) ? getCameraFeedsForTeam(t) : [], o = a.length > 2, s = o ? 240 : 360, n = o ? 135 : 202;
+    a.forEach((e, t) => {
+      const a = getCameraShellForFeed(e);
+      a && showCameraShell(a, "flare", {
+        width: s + "px",
+        height: n + "px",
+        top: 204 + t * (n + 8) + "px"
       });
     });
-  } else hideCameraLayer();
+  }));
+}
+
+function hideCameraFlare() {
+  camerasFlared = !1, Object.values(cameraShells).forEach(e => e.classList.contains("flare") && hideCameraShell(e)), 
+  setTimeout(() => camerasFlared || Object.values(cameraShells).forEach(e => e.classList.contains("flare") && !e.classList.contains("is-visible") && parkCameraShell(e)), 600);
+}
+
+// Hidden cameras wait at the player-card spot and size, so a spectate switch
+// is just an opacity flip -- no move or resize of the stream at switch time.
+function parkCameraShell(e) {
+  e.className = "camera-shell card " + normalizeCameraTeam(e.feed.team), e.style.width = e.style.height = e.style.top = "", 
+  e.setAttribute("aria-hidden", "true");
+}
+
+// Spectated player's camera, sitting on top of the bottom player card.
+function showCardCamera(e) {
+  const t = !camerasFlared && !OV.disableBottomCams && !1 !== OV.showPlayerCard && !$("stats-wall").classList.contains("show") ? getCameraShellForFeed(getCameraFeedForPlayer(e)) : null;
+  Object.values(cameraShells).forEach(e => e !== t && e.classList.contains("card") && hideCameraShell(e)), 
+  t && showCameraShell(t, "card", {
+    width: "",
+    height: "",
+    top: ""
+  });
+}
+
+function hideCardCamera() {
+  Object.values(cameraShells).forEach(e => e.classList.contains("card") && hideCameraShell(e));
 }
 
 function hideCameraLayer() {
-  const e = $("camera-layer");
-  e && (getCameraShells().forEach(e => {
-    e.classList.remove("is-visible"), e.querySelector(".camera-lower-third")?.remove(), 
-    e.classList.add("is-retracting");
-  }), window.setTimeout(() => {
-    getCameraShells().some(e => e.classList.contains("is-visible")) || (getCameraShells().forEach(e => {
-      e.className = "camera-shell", e.setAttribute("aria-hidden", "true");
-    }), e.classList.add("hidden"));
-  }, 560));
+  camerasFlared = !1, Object.values(cameraShells).forEach(hideCameraShell);
 }
 
 function updateHeaderText() {
@@ -2855,7 +2832,8 @@ function applyOverrides(e) {
   null != OV.seriesLen && buildPips(OV.seriesLen), updatePips(OV.blueWins ?? 0, OV.orangeWins ?? 0), 
   null != OV.showHud && $("hud").classList.toggle("visible", !!OV.showHud), null != OV.showNameplates && ($("blue-col").style.visibility = OV.showNameplates ? "" : "hidden",
   $("orange-col").style.visibility = OV.showNameplates ? "" : "hidden"), null != OV.showBoostWheel && ($("boost-wheel").style.visibility = OV.showBoostWheel ? "" : "hidden"),
-  null != OV.showPlayerCard && ($("player-card").style.visibility = OV.showPlayerCard ? "" : "hidden"), [ getCameraFeedForTeam("team1"), getCameraFeedForTeam("team2") ].filter(Boolean).forEach(preloadCameraFeed),
+  null != OV.showPlayerCard && ($("player-card").style.visibility = OV.showPlayerCard ? "" : "hidden"), syncCameraShells(), $("camera-layer").classList.toggle("no-names", !!OV.hideCameraNames), $("camera-layer").style.setProperty("--cam-team1", OV.blueColor || "#21afd7"),
+  $("camera-layer").style.setProperty("--cam-team2", OV.orangeColor || "#fd5b00"), (!1 === OV.showPlayerCard || OV.disableBottomCams) && hideCardCamera(),
   OV.clearLogos && [ "blue-logo-box", "orange-logo-box" ].forEach(e => {
     $(e).innerHTML = '<div class="logo-placeholder"></div>';
   });

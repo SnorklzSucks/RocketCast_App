@@ -1,6 +1,9 @@
 (() => {
   const TEAM_FIELDS = [ "blue-name", "orange-name", "blue-abbr", "orange-abbr", "blue-color", "orange-color", "series-length", "blue-wins", "orange-wins", "header-text", "header-text-full" ];
   const OVERLAY_ELEMENT_TOGGLES = [ { id: "overlay-toggle-scoreboard", key: "hideScoreboard" }, { id: "overlay-toggle-boost-wheel", key: "hideBoostWheel" }, { id: "overlay-toggle-bottom-player-card", key: "hideBottomPlayerCard" }, { id: "overlay-toggle-side-player-cards", key: "hideSidePlayerCards" } ];
+  // Simple on/off camera options: saved per machine and sent to the overlay.
+  const CAMERA_OPTION_TOGGLES = [ { id: "camera-disable-bottom", key: "disableBottomCams", storageKey: "cameraDisableBottom" }, { id: "camera-hide-names", key: "hideCameraNames", storageKey: "cameraHideNames" } ];
+  const DEFAULT_BASE_COLORS = { name: "", blue: "#21afd7", orange: "#fd5b00" };
   let socket = null, pendingOverrideSync = !1, inputPublishQueued = !1, cameraPremiumEnabled = !1;
   function getElement(id) {
     return document.getElementById(id);
@@ -28,6 +31,25 @@
     TEAM_FIELDS.forEach(fieldId => {
       payload[fieldId] = String(getElement(fieldId)?.value || "");
     }), localStorage.setItem("matchForm", JSON.stringify(payload));
+  }
+  // Base colours: the chosen preset is applied when picked, remembered across
+  // restarts, and is what Reset Team Data puts the colours back to.
+  function readColorPresets() {
+    try {
+      const list = JSON.parse(localStorage.getItem("colorPresets") || "[]");
+      return Array.isArray(list) ? list : [];
+    } catch {
+      return [];
+    }
+  }
+  function getBaseColors() {
+    const name = localStorage.getItem("baseColorPreset") || "";
+    return name && readColorPresets().find(preset => preset.name === name) || DEFAULT_BASE_COLORS;
+  }
+  function renderColorPresetSelect() {
+    const select = getElement("color-preset-select");
+    select && (select.innerHTML = '<option value="">Default (blue / orange)</option>' + readColorPresets().map(preset => `<option value="${escapeHtml(preset.name)}">${escapeHtml(preset.name)}</option>`).join(""),
+    select.value = getBaseColors().name);
   }
   function toInt(value, fallback = 0) {
     const parsed = Number.parseInt(String(value), 10);
@@ -71,41 +93,54 @@
       id: String(raw.id || `camera-${index + 1}`),
       url: String(raw.url || "").trim(),
       team: String(raw.team || "team1").toLowerCase(),
-      label: String(raw.label || "").trim()
+      player: String(raw.player || "").trim()
     };
   }
   function normalizeCameraFeeds(feeds) {
     return (Array.isArray(feeds) ? feeds : []).map((feed, index) => normalizeCameraFeed(feed, index));
   }
+  // Always 4 fixed slots per team. Cameras saved by the old free-form list
+  // (any count, no player) fill each team's slots in the order they were added.
+  function toCameraSlots(feeds) {
+    const list = normalizeCameraFeeds(feeds);
+    return [ "team1", "team2" ].flatMap(team => {
+      const own = list.filter(feed => feed.team === team);
+      return [ 0, 1, 2, 3 ].map(i => ({
+        id: `${team}-${i + 1}`,
+        team: team,
+        url: own[i]?.url || "",
+        player: own[i]?.player || ""
+      }));
+    });
+  }
   function persistCameraFeeds(feeds) {
-    const normalized = (Array.isArray(feeds) ? feeds : []).map((feed, index) => normalizeCameraFeed(feed, index));
-    return localStorage.setItem("cameraFeeds", JSON.stringify(normalized)), normalized;
+    const slots = toCameraSlots(feeds);
+    return localStorage.setItem("cameraFeeds", JSON.stringify(slots)), slots;
   }
   function getCameraFeedsFromDom() {
     const container = getElement("camera-list");
     return container ? Array.from(container.querySelectorAll("[data-camera-row]")).map((row, index) => normalizeCameraFeed({
       id: row.dataset.cameraId,
+      team: row.dataset.cameraTeam,
       url: String(row.querySelector("[data-camera-url]")?.value || "").trim(),
-      team: String(row.querySelector("[data-camera-team]")?.value || "team1").trim(),
-      label: String(row.querySelector("[data-camera-label]")?.value || "").trim()
+      player: String(row.querySelector("[data-camera-player]")?.value || "").trim()
     }, index)) : [];
+  }
+  function cameraSlotLabel(feed) {
+    return `${"team2" === feed.team ? "Orange" : "Blue"} Camera ${feed.id.split("-")[1] || ""}`;
   }
   function renderCameraPreview(feeds) {
     const preview = getElement("camera-preview");
     if (!preview) return;
-    const cameraFeeds = normalizeCameraFeeds(feeds);
-    cameraFeeds.length ? preview.innerHTML = cameraFeeds.map(feed => {
-      const safeUrl = escapeHtml(feed.url);
-      return `\n                <div style="flex:1;min-width:240px;max-width:100%;padding:10px;border:1px solid var(--panel-border);border-radius:10px;background:var(--panel-bg);margin:8px;display:flex;flex-direction:column;gap:8px;">\n                    <div style="font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.08em;">${escapeHtml(feed.label || ("team2" === feed.team ? "Team 2" : "Team 1"))}</div>\n                    <div style="font-size:11px;color:var(--muted);">${"team2" === feed.team ? "Team 2" : "Team 1"}</div>\n                    <div style="flex:1;min-height:150px;border-radius:8px;overflow:hidden;background:#000;">\n                        ${feed.url ? `<iframe src="${safeUrl}" allow="camera; microphone; autoplay; clipboard-write; encrypted-media" style="width:100%;height:100%;border:0;background:#000;"></iframe>` : '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);">Enter a VDO.Ninja link</div>'}\n                    </div>\n                </div>\n            `;
-    }).join("") : preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">No cameras added yet.</div>';
+    const cameraFeeds = normalizeCameraFeeds(feeds).filter(feed => feed.url);
+    cameraFeeds.length ? preview.innerHTML = cameraFeeds.map(feed => `\n                <div style="flex:1;min-width:200px;max-width:100%;padding:10px;border:1px solid var(--panel-border);border-radius:10px;background:var(--panel-bg);margin:8px;display:flex;flex-direction:column;gap:6px;">\n                    <div style="font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.08em;">${escapeHtml(cameraSlotLabel(feed))}</div>\n                    <div style="font-size:11px;color:var(--muted);">${escapeHtml(feed.player || "No player assigned")}</div>\n                    <div style="flex:1;min-height:120px;border-radius:8px;overflow:hidden;background:#000;">\n                        <iframe src="${escapeHtml(feed.url)}" allow="camera; microphone; autoplay; clipboard-write; encrypted-media" style="width:100%;height:100%;border:0;background:#000;"></iframe>\n                    </div>\n                </div>\n            `).join("") : preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">No cameras added yet.</div>';
   }
   function renderCameraFeedsUI(feeds = []) {
     const container = getElement("camera-list");
     if (!container) return;
-    const cameraFeeds = persistCameraFeeds(feeds);
-    if (!cameraFeeds.length) return container.innerHTML = "", void renderCameraPreview([]);
-    container.innerHTML = cameraFeeds.map((feed, index) => `\n            <div data-camera-row data-camera-id="${escapeHtml(feed.id)}" style="display:grid;grid-template-columns:1.35fr 0.8fr 0.8fr auto;gap:8px;align-items:center;margin-bottom:8px;padding:10px;border:1px solid var(--panel-border);border-radius:10px;background:var(--panel-bg);">\n                <input data-camera-url type="text" value="${escapeHtml(feed.url)}" placeholder="VDO.Ninja link" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--input-border);background:var(--input-bg);color:var(--input-text);">\n                <select data-camera-team style="padding:8px 10px;border-radius:8px;border:1px solid var(--input-border);background:var(--input-bg);color:var(--input-text);">\n                    <option value="team1" ${"team1" === feed.team ? "selected" : ""}>Team 1</option>\n                    <option value="team2" ${"team2" === feed.team ? "selected" : ""}>Team 2</option>\n                </select>\n                <input data-camera-label type="text" value="${escapeHtml(feed.label)}" placeholder="Camera label" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--input-border);background:var(--input-bg);color:var(--input-text);">\n                <button type="button" data-remove-camera="${escapeHtml(feed.id)}" style="padding:8px 10px;border:none;border-radius:8px;background:#a63434;color:white;cursor:pointer;">Remove</button>\n            </div>\n        `).join(""), 
-    renderCameraPreview(cameraFeeds);
+    const slots = persistCameraFeeds(feeds), inputStyle = "width:100%;min-width:0;padding:8px 10px;border-radius:8px;border:1px solid var(--input-border);background:var(--input-bg);color:var(--input-text);";
+    container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;">${[ "team1", "team2" ].map(team => `\n            <div>\n                <div style="font-weight:700;margin-bottom:6px;">${"team2" === team ? "Orange (right)" : "Blue (left)"}</div>\n                ${slots.filter(feed => feed.team === team).map(feed => `\n                <div data-camera-row data-camera-id="${escapeHtml(feed.id)}" data-camera-team="${team}" style="display:grid;grid-template-columns:auto 1.3fr 1fr;gap:8px;align-items:center;margin-bottom:8px;padding:8px 10px;border:1px solid var(--panel-border);border-radius:10px;background:var(--panel-bg);">\n                    <span style="font-weight:700;color:var(--muted);">${escapeHtml(feed.id.split("-")[1])}</span>\n                    <input data-camera-url type="text" value="${escapeHtml(feed.url)}" placeholder="VDO.Ninja link" style="${inputStyle}">\n                    <input data-camera-player type="text" list="camera-players-${team}" value="${escapeHtml(feed.player)}" placeholder="Epic ID or username" style="${inputStyle}">\n                </div>`).join("")}\n            </div>`).join("")}</div>`, 
+    renderCameraPreview(slots);
   }
   function publishOverrides() {
     isRelayConnected() ? (pendingOverrideSync = !1, socket.emit("overrides", {
@@ -125,6 +160,8 @@
       teamsSwapped: "true" === localStorage.getItem("teamsSwapped"),
       cameras: cameraPremiumEnabled ? getCameraFeedsFromDom() : [],
       onlyShowScoringTeamCamera: cameraPremiumEnabled && !0 === getElement("camera-only-score")?.checked,
+      matchReplayMode: !0 === getElement("overlay-toggle-match-replay-mode")?.checked,
+      ...Object.fromEntries(CAMERA_OPTION_TOGGLES.map(({id: id, key: key}) => [ key, !0 === getElement(id)?.checked ])),
       hideScoreboard: !isOverlayElementVisible("overlay-toggle-scoreboard"),
       hideBoostWheel: !isOverlayElementVisible("overlay-toggle-boost-wheel"),
       hideBottomPlayerCard: !isOverlayElementVisible("overlay-toggle-bottom-player-card"),
@@ -148,10 +185,18 @@
     void 0 !== data.blueWins && setValue("blue-wins", String(data.blueWins)), void 0 !== data.orangeWins && setValue("orange-wins", String(data.orangeWins)), 
     void 0 !== data.headerText && setValue("header-text", data.headerText), void 0 !== data.headerTextFull && setValue("header-text-full", data.headerTextFull), 
     void 0 !== data.cameras && (leftFeeds = data.cameras, rightFeeds = getCameraFeedsFromDom(), 
-    JSON.stringify(normalizeCameraFeeds(leftFeeds)) !== JSON.stringify(normalizeCameraFeeds(rightFeeds))) && renderCameraFeedsUI(data.cameras), 
+    JSON.stringify(toCameraSlots(leftFeeds)) !== JSON.stringify(toCameraSlots(rightFeeds))) && renderCameraFeedsUI(data.cameras), 
     void 0 !== data.onlyShowScoringTeamCamera)) {
       const checkbox = getElement("camera-only-score");
       checkbox && (checkbox.checked = !!data.onlyShowScoringTeamCamera), localStorage.setItem("cameraOnlyScore", checkbox?.checked ? "true" : "false");
+    }
+    data && "object" == typeof data && CAMERA_OPTION_TOGGLES.forEach(({id: id, key: key, storageKey: storageKey}) => {
+      const checkbox = getElement(id);
+      void 0 !== data[key] && checkbox && (checkbox.checked = !!data[key], localStorage.setItem(storageKey, checkbox.checked ? "true" : "false"));
+    });
+    if (data && "object" == typeof data && void 0 !== data.matchReplayMode) {
+      const checkbox = getElement("overlay-toggle-match-replay-mode");
+      checkbox && (checkbox.checked = !!data.matchReplayMode), localStorage.setItem("matchReplayMode", checkbox?.checked ? "true" : "false");
     }
     if (!data || "object" != typeof data) return;
     let togglesChanged = !1;
@@ -167,14 +212,11 @@
   }
   function setCameraFeaturePremiumEnabled(isEnabled) {
     cameraPremiumEnabled = Boolean(isEnabled);
-    const addButton = getElement("add-camera-btn");
-    addButton && (addButton.disabled = !cameraPremiumEnabled, addButton.style.opacity = cameraPremiumEnabled ? "1" : "0.55", 
-    addButton.style.cursor = cameraPremiumEnabled ? "pointer" : "not-allowed");
     const cameraList = getElement("camera-list");
     cameraList && (cameraList.querySelectorAll("input, select, button").forEach(element => {
       element.disabled = !cameraPremiumEnabled;
     }), cameraList.style.opacity = cameraPremiumEnabled ? "1" : "0.55", cameraList.style.pointerEvents = cameraPremiumEnabled ? "auto" : "none"), 
-    cameraPremiumEnabled || (persistCameraFeeds([]), renderCameraFeedsUI([]), setCameraOnlyScorePremiumEnabled(!1), 
+    cameraPremiumEnabled || (setCameraOnlyScorePremiumEnabled(!1), 
     publishOverrides());
   }
   function handleLogoFile(file, previewId, storageKey, altText) {
@@ -293,7 +335,7 @@
           const snap = snapshotFields([ "blue-name", "blue-abbr", "blue-wins", "orange-name", "orange-abbr", "orange-wins", "blue-color", "orange-color", "header-text", "header-text-full", "series-length" ]), blueLogo = localStorage.getItem("blueLogo"), orangeLogo = localStorage.getItem("orangeLogo");
           setValue("blue-name", ""), setValue("blue-abbr", ""), setValue("blue-wins", "0"), 
           setValue("orange-name", ""), setValue("orange-abbr", ""), setValue("orange-wins", "0"), 
-          setValue("blue-color", "#21afd7"), setValue("orange-color", "#fd5b00"), setValue("header-text", ""), 
+          setValue("blue-color", getBaseColors().blue), setValue("orange-color", getBaseColors().orange), setValue("header-text", ""), 
           setValue("header-text-full", ""), setValue("series-length", "7"), localStorage.removeItem("blueLogo"), 
           localStorage.removeItem("orangeLogo"), renderLogoPreview("blue-logo-preview", "", "Blue logo"),
           renderLogoPreview("orange-logo-preview", "", "Orange logo"), persistFormValues(), publishOverrides(),
@@ -329,6 +371,36 @@
         if (onlyScoreCheckbox.disabled) return onlyScoreCheckbox.checked = !1, void localStorage.setItem("cameraOnlyScore", "false");
         localStorage.setItem("cameraOnlyScore", onlyScoreCheckbox.checked ? "true" : "false"),
         publishOverrides();
+      }));
+      CAMERA_OPTION_TOGGLES.forEach(({id: id, storageKey: storageKey}) => {
+        const checkbox = getElement(id);
+        checkbox && (checkbox.checked = "true" === localStorage.getItem(storageKey), checkbox.addEventListener("change", () => {
+          localStorage.setItem(storageKey, checkbox.checked ? "true" : "false"), publishOverrides();
+        }));
+      }), renderColorPresetSelect(), getElement("color-preset-select")?.addEventListener("change", event => {
+        localStorage.setItem("baseColorPreset", event.target.value);
+        const base = getBaseColors();
+        setValue("blue-color", base.blue), setValue("orange-color", base.orange), persistFormValues(), publishOverrides();
+      }), getElement("color-preset-save")?.addEventListener("click", () => {
+        const nameInput = getElement("color-preset-name"), name = String(nameInput?.value || "").trim();
+        if (!name) return void showToast("Give the preset a name first", !0);
+        const presets = readColorPresets().filter(preset => preset.name !== name);
+        presets.push({
+          name: name,
+          blue: String(getElement("blue-color")?.value || DEFAULT_BASE_COLORS.blue),
+          orange: String(getElement("orange-color")?.value || DEFAULT_BASE_COLORS.orange)
+        }), localStorage.setItem("colorPresets", JSON.stringify(presets)), localStorage.setItem("baseColorPreset", name),
+        nameInput.value = "", renderColorPresetSelect(), showToast(`Saved "${name}" as your base colors`);
+      }), getElement("color-preset-delete")?.addEventListener("click", () => {
+        const name = getElement("color-preset-select")?.value;
+        name && (localStorage.setItem("colorPresets", JSON.stringify(readColorPresets().filter(preset => preset.name !== name))),
+        localStorage.removeItem("baseColorPreset"), renderColorPresetSelect(), showToast(`Deleted "${name}"`));
+      });
+      const matchReplayModeCheckbox = getElement("overlay-toggle-match-replay-mode");
+      matchReplayModeCheckbox && (matchReplayModeCheckbox.checked = "true" === localStorage.getItem("matchReplayMode"),
+      matchReplayModeCheckbox.addEventListener("change", () => {
+        localStorage.setItem("matchReplayMode", matchReplayModeCheckbox.checked ? "true" : "false"),
+        publishOverrides();
       })), function() {
         const raw = localStorage.getItem("overlayElementToggles");
         let saved = {};
@@ -343,18 +415,6 @@
         });
       }(), persistFormValues();
     }(), function() {
-      const addButton = getElement("add-camera-btn");
-      addButton && addButton.addEventListener("click", event => {
-        if (!cameraPremiumEnabled) return void event.preventDefault();
-        event.preventDefault(), event.stopPropagation();
-        const feeds = getCameraFeedsFromDom();
-        feeds.push({
-          id: `camera-${Date.now()}`,
-          url: "",
-          team: "team1",
-          label: ""
-        }), renderCameraFeedsUI(feeds), publishOverrides();
-      });
       const cameraList = getElement("camera-list");
       cameraList && (cameraList.addEventListener("input", () => {
         if (!cameraPremiumEnabled) return;
@@ -364,13 +424,6 @@
         if (!cameraPremiumEnabled) return;
         const feeds = getCameraFeedsFromDom();
         renderCameraPreview(feeds), persistCameraFeeds(feeds), publishOverrides();
-      }), cameraList.addEventListener("click", event => {
-        if (!cameraPremiumEnabled) return;
-        const button = event.target.closest("[data-remove-camera]");
-        if (!button) return;
-        const targetId = String(button.getAttribute("data-remove-camera") || "");
-        renderCameraFeedsUI(getCameraFeedsFromDom().filter(feed => feed.id !== targetId)), 
-        publishOverrides();
       }));
       const storedCameraFeeds = localStorage.getItem("cameraFeeds");
       if (storedCameraFeeds) try {

@@ -5654,6 +5654,13 @@ textarea:focus-visible{
             <div class="color-control">
               <label>Orange Color</label> <input type="color" id="orange-color" value="#fd5b00">
             </div>
+            <div class="color-control" style="grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+              <label style="margin:0">Base Colors</label>
+              <select id="color-preset-select" style="width:auto;min-width:180px;margin:0" title="Picking a preset applies it, and Reset Team Data goes back to it"></select>
+              <input type="text" id="color-preset-name" placeholder="New preset name" maxlength="40" style="width:auto;flex:1;min-width:140px;margin:0">
+              <button class="btn" type="button" id="color-preset-save" style="width:auto;margin:0;background:var(--btn-utility);color:#fff">Save Preset</button>
+              <button class="btn" type="button" id="color-preset-delete" style="width:auto;margin:0;background:#a63434;color:#fff">Delete</button>
+            </div>
           </div>
           <div class="ms-dashboard-panel">
             <div class="ms-subtab-rail" id="ms-subtab-rail">
@@ -5686,16 +5693,22 @@ textarea:focus-visible{
                 <div id="camera-feeds-section" style="display:none">
                   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
                     <div>
-                      <div style="font-weight:700">Camera Feeds (BETA)</div>
+                      <div style="font-weight:700">Camera Feeds</div>
+                      <div style="font-size:12px;color:var(--muted);margin-top:2px">Up to 4 cameras per team. Each one shows on its side when the scoreboard flares out on a goal, and above the bottom player card while its player is spectated.</div>
                     </div>
-                    <button class="btn" id="add-camera-btn" style="background:var(--btn-utility);color:#fff;width:auto;margin:0">Add Camera</button>
                   </div>
-                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                  <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-bottom:12px">
                     <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text)">
                       <input type="checkbox" id="camera-only-score" style="width:16px;height:16px"> Only show scoring team camera</label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text)">
+                      <input type="checkbox" id="camera-disable-bottom" style="width:16px;height:16px"> Disable bottom cams</label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text)">
+                      <input type="checkbox" id="camera-hide-names" style="width:16px;height:16px"> Hide player names</label>
                   </div>
                   <div id="camera-list">
                   </div>
+                  <datalist id="camera-players-team1"></datalist>
+                  <datalist id="camera-players-team2"></datalist>
                   <div id="camera-preview" style="margin-top:10px;min-height:220px;border:1px solid var(--panel-border);border-radius:10px;background:var(--panel-bg);display:flex;flex-wrap:wrap;align-items:center;justify-content:center;color:var(--muted);overflow:hidden">
                   </div>
                 </div>
@@ -5718,6 +5731,11 @@ textarea:focus-visible{
                   <span>Side Player Cards</span>
                   <span class="overlay-toggle-switch"><input type="checkbox" id="overlay-toggle-side-player-cards" checked><span class="overlay-toggle-switch-track"></span></span>
                 </label>
+                <label class="overlay-toggle-row">
+                  <span>Match Replay Mode</span>
+                  <span class="overlay-toggle-switch"><input type="checkbox" id="overlay-toggle-match-replay-mode"><span class="overlay-toggle-switch-track"></span></span>
+                </label>
+                <div style="font-size:12px;color:var(--muted);margin-top:-6px">Turn on while scrubbing a saved match replay so the overlay doesn't auto-pop the goal replay graphic/camera on every goal.</div>
               </div>
               <div class="ms-subtab-pane" data-subtab-pane="recording">
                 <div class="recording-layout">
@@ -5747,9 +5765,10 @@ textarea:focus-visible{
                           <span class="overlay-toggle-switch"><input id="obs-record-enabled-settings" type="checkbox"><span class="overlay-toggle-switch-track"></span></span>
                         </label>
                         <div id="obs-record-settings-note" class="status-note" style="margin-top:6px"></div>
+                        <button class="btn" id="complete-all-series-btn" type="button" style="background:var(--btn-utility);color:#fff;width:auto;margin-top:10px">Complete All Incomplete Series</button>
                       </div>
                       <div class="recording-actions" style="margin-top:8px">
-                        <button class="btn" id="play-last-highlight-reel-btn" type="button" style="background:var(--btn-success);color:#fff;width:auto;margin:0">Play Last Highlight Reel</button>
+                        <button class="btn" id="play-last-highlight-reel-btn" type="button" style="background:var(--btn-success);color:#fff;width:auto;margin:0">Play Last Highlight Reel</button> <button class="btn" id="loop-last-highlight-reel-btn" type="button" data-loop-reel data-loop-kind="latest" data-loop-id="latest" style="background:var(--btn-success);color:#fff;width:auto;margin:0">Loop Last Highlight Reel</button>
                       </div>
                     </div>
                     <div id="recording-method-internal" class="recording-method-panel" style="display:none">
@@ -5816,6 +5835,16 @@ textarea:focus-visible{
                         </div>
                       </div>
                     </div>
+                  </div>
+                  <div class="recording-card">
+                    <h3>Highlight Reels</h3>
+                    <div class="recording-actions">
+                      <button class="btn" id="play-last-game-reel-btn" type="button" style="background:var(--btn-success);color:#fff;width:auto;margin:0">Play Last Game Highlight Reel</button>
+                    </div>
+                    <label style="display:flex;align-items:center;gap:8px;margin:12px 0 0;font-size:14px;color:var(--text)">
+                      <input type="checkbox" id="reel-autoplay-enabled" style="width:16px;height:16px;margin:0;flex:none"> Autoplay last game's reel after the stats screen</label>
+                    <label style="display:flex;align-items:center;gap:8px;margin:8px 0 0;font-size:14px;color:var(--text)">
+                      Wait <input id="reel-autoplay-delay" type="number" min="0" max="120" step="1" value="5" style="width:64px;margin:0;flex:none"> seconds after it shows</label>
                   </div>
                   <div id="recording-preview-card" class="recording-card">
                     <h3>Recording Preview</h3>
@@ -6628,6 +6657,19 @@ textarea:focus-visible{
     var builderState = { activeLayout: null, dirty: false, items: [], selection: [] };
     var resolvedBracketPortLabel = "";
 
+// Fills the Cameras tab's per-team <datalist>s with whoever is in the live
+// match, so a camera's player field can be picked instead of typed. Only
+// rewritten when the roster changes -- UpdateState arrives many times a second.
+let cameraPlayerListsKey = "";
+
+function updateCameraPlayerLists(game) {
+  const players = Array.isArray(game?.Players) ? game.Players : [], key = players.map(p => p.TeamNum + ":" + p.Name).join("|");
+  key !== cameraPlayerListsKey && (cameraPlayerListsKey = key, [ 0, 1 ].forEach(team => {
+    const list = document.getElementById(`camera-players-team${team + 1}`);
+    list && list.replaceChildren(...players.filter(p => p.TeamNum === team && p.Name).map(p => new Option(p.Name)));
+  }));
+}
+
 let liveGame = null, lastGameStats = null, lastRlStatus = null, lastLoggedRlStatusLabel = null;
 
 const recordingState = {
@@ -6828,23 +6870,6 @@ function prefillSavedLoginIdentifier() {
   saved && (input.value = saved);
 }
 
-function getCameraFeedsFromDom() {
-  const e = document.getElementById("camera-list");
-  return e ? Array.from(e.querySelectorAll("[data-camera-row]")).map((e, t) => ({
-    id: e.dataset.cameraId || `camera-${t + 1}`,
-    url: String(e.querySelector("[data-camera-url]")?.value || "").trim(),
-    team: String(e.querySelector("[data-camera-team]")?.value || "team1").trim(),
-    label: String(e.querySelector("[data-camera-label]")?.value || "").trim()
-  })) : [];
-}
-
-function renderCameraPreviewFromDom() {
-  const e = document.getElementById("camera-preview");
-  if (!e) return;
-  const t = getCameraFeedsFromDom();
-  t.length ? e.innerHTML = t.map(e => `\n                <div style="flex:1;min-width:240px;max-width:100%;padding:10px;border:1px solid var(--panel-border);border-radius:10px;background:var(--panel-bg);margin:8px;display:flex;flex-direction:column;gap:8px;">\n                    <div style="font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.08em;">${e.label || ("team2" === e.team ? "Team 2" : "Team 1")}</div>\n                    <div style="font-size:11px;color:var(--muted);">${"team2" === e.team ? "Team 2" : "Team 1"}</div>\n                    <div style="flex:1;min-height:150px;border-radius:8px;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center;color:var(--muted);">\n                        ${e.url ? `<iframe src="${e.url}" allow="camera; microphone; autoplay; clipboard-write; encrypted-media" style="width:100%;height:100%;border:0;background:#000;"></iframe>` : "Enter a VDO.Ninja link"}\n                    </div>\n                </div>\n            `).join("") : e.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">No cameras added yet.</div>';
-}
-
 let analyticsHeartbeatTimer = null, currentKeybinds = {
   ...DEFAULT_KEYBINDS
 }, keybindCaptureAction = null;
@@ -6964,8 +6989,15 @@ function closeMsFlyout(force = !1) {
   flyout && (force || !isMsFlyoutLocked()) && (flyout.classList.remove("open"), stopRecordingMatchPolling());
 }
 
+// mouseleave/focusout only schedule the close; it actually happens only if, by
+// then, the pointer is off the rail and flyout AND focus is outside them both.
+// Otherwise clicking into a field (which blurs the rail button) or tabbing
+// between fields would close the flyout while it is being used.
 function scheduleMsFlyoutClose() {
-  clearTimeout(msFlyoutCloseTimer), msFlyoutCloseTimer = setTimeout(() => closeMsFlyout(), 260);
+  clearTimeout(msFlyoutCloseTimer), msFlyoutCloseTimer = setTimeout(() => {
+    const rail = document.getElementById("ms-subtab-rail"), flyout = document.getElementById("ms-subtab-flyout"), active = document.activeElement;
+    [ rail, flyout ].some(el => el && (el.matches(":hover") || el.contains(active))) || closeMsFlyout();
+  }, 260);
 }
 
 function initMsSubtabs() {
@@ -9256,7 +9288,7 @@ function renderMatchHistory() {
         <div class="history-series-track" style="--series-pip-count:${pipCount};">${pips}</div>
         <div class="history-series-scoreline">${escapeHtml(blueName)} <strong>${blueWins} - ${orangeWins}</strong> ${escapeHtml(orangeName)}</div>
         <div class="history-series-actions">
-          ${games.length ? isGuestModeActive ? '<button type="button" class="btn history-action-btn history-action-btn-secondary" disabled title="The highlight reel video lives on the host machine only">Connected to Server - Unplayable</button>' : `<button type="button" class="btn history-action-btn" data-series-play-reel data-series-id="${escapeHtml(String(series.id || ""))}">Play Reel</button> <button type="button" class="btn history-action-btn history-action-btn-secondary" data-loop-reel data-loop-kind="series" data-loop-id="${escapeHtml(String(series.id || ""))}">Loop</button>` : ""}
+          ${games.length && isComplete ? isGuestModeActive ? '<button type="button" class="btn history-action-btn history-action-btn-secondary" disabled title="The highlight reel video lives on the host machine only">Connected to Server - Unplayable</button>' : `<button type="button" class="btn history-action-btn" data-series-play-reel data-series-id="${escapeHtml(String(series.id || ""))}">Play Reel</button> <button type="button" class="btn history-action-btn history-action-btn-secondary" data-loop-reel data-loop-kind="series" data-loop-id="${escapeHtml(String(series.id || ""))}">Loop</button>` : ""}
           ${isComplete ? `<button type="button" class="btn history-action-btn history-action-btn-secondary" data-series-restore data-series-id="${escapeHtml(String(series.id || ""))}">Restore Series</button>` : `<button type="button" class="btn history-action-btn history-action-btn-secondary" data-series-complete data-series-id="${escapeHtml(String(series.id || ""))}">Complete Series</button>`}
           <details class="history-edit-details">
             <summary></summary>
@@ -9293,9 +9325,41 @@ let activeLoopReel = null;
 
 function syncLoopButtonsUi() {
   document.querySelectorAll("[data-loop-reel]").forEach(btn => {
-    const kind = btn.getAttribute("data-loop-kind"), id = btn.getAttribute("data-loop-id"), isActive = Boolean(activeLoopReel && activeLoopReel.kind === kind && activeLoopReel.id === id);
-    btn.textContent = isActive ? "Stop Loop" : "Loop", btn.classList.toggle("is-looping", isActive);
+    const kind = btn.getAttribute("data-loop-kind"), id = btn.getAttribute("data-loop-id"), isActive = Boolean(activeLoopReel && activeLoopReel.kind === kind && activeLoopReel.id === id), label = "latest" === kind ? "Loop Last Highlight Reel" : "Loop";
+    btn.textContent = isActive ? "latest" === kind ? "Stop Looping" : "Stop Loop" : label, btn.classList.toggle("is-looping", isActive);
   });
+}
+
+// Shared by the per-series/per-game Loop buttons in match history (reached
+// through their delegated click handler, above) and the standalone "Loop
+// Last Highlight Reel" button in the Recording tab, which isn't inside that
+// delegated container. Only one reel loops at a time, tracked by
+// activeLoopReel, so starting any of them stops whichever was already
+// looping first (the server only ever plays one thing at a time anyway).
+async function toggleReelLoop(loopBtn) {
+  if (isGuestModeActive) return void showPanelToast("Connected to a server. The highlight reel video only exists on the host machine.", !0);
+  const kind = loopBtn.getAttribute("data-loop-kind"), id = String(loopBtn.getAttribute("data-loop-id") || "").trim();
+  if (!id) return;
+  const wasActive = Boolean(activeLoopReel && activeLoopReel.kind === kind && activeLoopReel.id === id);
+  loopBtn.disabled = !0;
+  try {
+    if (wasActive) await fetch("/api/reels/stop", { method: "POST" }), activeLoopReel = null; else {
+      const url = "series" === kind ? `/api/series/${encodeURIComponent(id)}/reel/play` : "latest" === kind ? "/api/reels/series/latest/play" : `/api/matches/${encodeURIComponent(id)}/reel/play`, res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ loop: !0 })
+      }), data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) {
+        if (202 === res.status && data?.building) throw new Error("Highlight reel not ready yet");
+        throw new Error(data?.error || `Failed to loop highlight reel (${res.status})`);
+      }
+      activeLoopReel = { kind: kind, id: id }, showPanelToast("Looping highlight reel", !1);
+    }
+  } catch (error) {
+    showPanelToast(error?.message || "Failed to loop highlight reel", !0);
+  } finally {
+    loopBtn.disabled = !1, syncLoopButtonsUi();
+  }
 }
 
 async function loadMatchHistory(e = !1) {
@@ -9896,6 +9960,34 @@ async function fetchReelWithRetry(url, { attempts = 24, delayMs = 2500 } = {}) {
   throw new Error("The highlight reel is taking longer than expected to build. Try again in a bit.");
 }
 
+// Reel autoplay: once the overlay's stats screen appears, play the last
+// game's reel after the caster's chosen delay. Host machine only -- every
+// connected guest seat would otherwise fire it too.
+let reelAutoplayTimer = null;
+
+function scheduleReelAutoplay() {
+  if (isGuestModeActive || "true" !== localStorage.getItem("reelAutoplayEnabled")) return;
+  const delaySec = Math.min(120, Math.max(0, Number(localStorage.getItem("reelAutoplayDelaySec") ?? 5) || 0));
+  clearTimeout(reelAutoplayTimer), reelAutoplayTimer = setTimeout(() => {
+    playLastGameReelWhenBuilt().then(data => {
+      activeLoopReel = null, syncLoopButtonsUi(), showPanelToast(`Autoplaying last game highlight reel${data?.goalCount ? ` (${data.goalCount} goals)` : ""}`, !1);
+    }).catch(error => showPanelToast(`Highlight reel autoplay: ${error?.message || "failed"}`, !0));
+  }, 1e3 * delaySec);
+}
+
+// One request the server holds open until the last game's reel has finished
+// building (it starts automatically when the game ends), then plays it.
+// Replaces polling, which on long builds hit "Too many requests".
+async function playLastGameReelWhenBuilt() {
+  const res = await fetch("/api/reels/last-game/play", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ wait: !0 })
+  }), data = await res.json().catch(() => ({}));
+  if (res.ok && data?.ok) return data;
+  throw new Error(data?.error || `Failed to play highlight reel (${res.status})`);
+}
+
 async function playSeriesHighlightReelWithRetry(seriesId) {
   return fetchReelWithRetry(`/api/series/${encodeURIComponent(seriesId)}/reel/play`);
 }
@@ -10172,29 +10264,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     const loopBtn = e.target.closest("[data-loop-reel]");
-    if (loopBtn) {
-      if (isGuestModeActive) return void showPanelToast("Connected to a server. The highlight reel video only exists on the host machine.", !0);
-      const kind = loopBtn.getAttribute("data-loop-kind"), id = String(loopBtn.getAttribute("data-loop-id") || "").trim();
-      if (!id) return;
-      const wasActive = Boolean(activeLoopReel && activeLoopReel.kind === kind && activeLoopReel.id === id);
-      loopBtn.disabled = !0;
-      try {
-        if (wasActive) await fetch("/api/reels/stop", { method: "POST" }), activeLoopReel = null; else {
-          const url = "series" === kind ? `/api/series/${encodeURIComponent(id)}/reel/play` : `/api/matches/${encodeURIComponent(id)}/reel/play`, res = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ loop: !0 })
-          }), data = await res.json().catch(() => ({}));
-          if (!res.ok || !data?.ok) throw new Error(data?.error || `Failed to loop highlight reel (${res.status})`);
-          activeLoopReel = { kind: kind, id: id }, showPanelToast("Looping highlight reel", !1);
-        }
-      } catch (error) {
-        showPanelToast(error?.message || "Failed to loop highlight reel", !0);
-      } finally {
-        loopBtn.disabled = !1, syncLoopButtonsUi();
-      }
-      return;
-    }
+    if (loopBtn) return void await toggleReelLoop(loopBtn);
     const restoreBtn = e.target.closest("[data-series-restore]");
     if (restoreBtn) {
       const seriesId = String(restoreBtn.getAttribute("data-series-id") || "").trim();
@@ -10362,12 +10432,61 @@ document.addEventListener("DOMContentLoaded", () => {
     setButtonBusy(playLastReelBtn, !0, "Playing...");
     try {
       const data = await playMostRecentSeriesHighlightReel(), goalCount = Number(data?.goalCount || 0);
+      activeLoopReel = null, syncLoopButtonsUi(),
       showPanelToast(`Playing latest series highlight reel${goalCount > 0 ? ` (${goalCount} goals)` : ""} on localhost:${resolvedMediaPortLabel}`, !1);
     } catch (error) {
       showPanelToast(error?.message || "Failed to play highlight reel", !0);
     } finally {
       setButtonBusy(playLastReelBtn, !1);
     }
+  });
+  const playLastGameReelBtn = document.getElementById("play-last-game-reel-btn");
+  playLastGameReelBtn && playLastGameReelBtn.addEventListener("click", async () => {
+    if (isGuestModeActive) return void showPanelToast("Connected to a server. The highlight reel video only exists on the host machine.", !0);
+    try {
+      const peekRes = await fetch("/api/reels/last-game/play", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ peek: !0 })
+      }), peek = await peekRes.json().catch(() => ({}));
+      if (!peekRes.ok || !peek?.ok) throw new Error(peek?.error || `Failed to find the last game (${peekRes.status})`);
+      const goalCount = Number(peek.goalCount || 0);
+      if (goalCount < 3 && !window.confirm(`Heads up: the last game only had ${goalCount} goal${1 === goalCount ? "" : "s"}, so its highlight reel will be short. Play it anyway?`)) return;
+      peek.built || showPanelToast("Highlight reel is still building. It will play as soon as it's ready.", !1);
+      setButtonBusy(playLastGameReelBtn, !0, peek.built ? "Playing..." : "Building...");
+      await playLastGameReelWhenBuilt(), activeLoopReel = null, syncLoopButtonsUi(),
+      showPanelToast(`Playing last game highlight reel (${goalCount} goal${1 === goalCount ? "" : "s"})`, !1);
+    } catch (error) {
+      showPanelToast(error?.message || "Failed to play highlight reel", !0);
+    } finally {
+      setButtonBusy(playLastGameReelBtn, !1);
+    }
+  });
+  const reelAutoplayCheckbox = document.getElementById("reel-autoplay-enabled"), reelAutoplayDelayInput = document.getElementById("reel-autoplay-delay");
+  reelAutoplayCheckbox && (reelAutoplayCheckbox.checked = "true" === localStorage.getItem("reelAutoplayEnabled"), reelAutoplayCheckbox.addEventListener("change", () => {
+    localStorage.setItem("reelAutoplayEnabled", reelAutoplayCheckbox.checked ? "true" : "false"), reelAutoplayCheckbox.checked || clearTimeout(reelAutoplayTimer);
+  })), reelAutoplayDelayInput && (reelAutoplayDelayInput.value = localStorage.getItem("reelAutoplayDelaySec") ?? "5", reelAutoplayDelayInput.addEventListener("change", () => {
+    const seconds = Math.min(120, Math.max(0, Math.round(Number(reelAutoplayDelayInput.value) || 0)));
+    reelAutoplayDelayInput.value = String(seconds), localStorage.setItem("reelAutoplayDelaySec", String(seconds));
+  }));
+  const loopLastReelBtn = document.getElementById("loop-last-highlight-reel-btn");
+  loopLastReelBtn && loopLastReelBtn.addEventListener("click", () => toggleReelLoop(loopLastReelBtn));
+  const completeAllSeriesBtn = document.getElementById("complete-all-series-btn");
+  completeAllSeriesBtn && completeAllSeriesBtn.addEventListener("click", async () => {
+    const incomplete = (matchHistoryState.seriesGroups || []).map(group => group.series).filter(series => series && "complete" !== String(series.status || "incomplete"));
+    if (!incomplete.length) return void showPanelToast("No incomplete series to complete", !1);
+    if (!window.confirm(`Mark ${incomplete.length} incomplete series as complete?`)) return;
+    setButtonBusy(completeAllSeriesBtn, !0, "Completing...");
+    let failed = 0;
+    for (const series of incomplete) {
+      try {
+        await saveSeriesConfig({ seriesId: series.id, forceComplete: !0 });
+      } catch {
+        failed++;
+      }
+    }
+    setButtonBusy(completeAllSeriesBtn, !1), loadMatchHistory(!0),
+    showPanelToast(failed ? `Completed ${incomplete.length - failed} of ${incomplete.length} series (${failed} failed)` : `Marked ${incomplete.length} series complete`, Boolean(failed));
   });
   const Ce = document.getElementById("recording-arm-buffer-btn");
   Ce && Ce.addEventListener("click", async () => {
@@ -10408,6 +10527,18 @@ document.addEventListener("DOMContentLoaded", () => {
   // whole lifetime.
   syncRecordingFrameInputs(), updateRecordingStatusUi(), refreshActiveRecordingMatch(),
   loadRecordingIntegrationStatus().then(async () => {
+    // Whenever OBS is the chosen recording method, try to reach it the
+    // moment the panel loads instead of waiting for a manual "Connect"
+    // click or the first goal. Best-effort and silent: if OBS isn't open
+    // yet this just leaves the status pill on "Disconnected" rather than
+    // nagging with a toast on every launch.
+    if ("obs" === recorderUiState.method && !recorderUiState.obs.connected) {
+      try {
+        await fetch("/api/recording/obs/connect", { method: "POST" });
+      } catch {}
+      await loadRecordingIntegrationStatus();
+    }
+
     // The "record with OBS" (Record Goals for Highlights) checkbox state
     // persists in localStorage across restarts, but that's just UI state —
     // it doesn't by itself reconnect to OBS or restart the replay buffer
@@ -10443,9 +10574,9 @@ document.addEventListener("DOMContentLoaded", () => {
   "MatchInitialized" !== t && "MatchInitilized" !== t || (refreshActiveRecordingMatch(), 
   hasPremiumAccess() && "internal" === recorderUiState.method && ensureRecordingAutoStarted().catch(e => {
     showPanelToast(e?.message || "Failed to auto-start recorder", !0);
-  })), "UpdateState" === t && (liveGame = o, shouldPaintStatsHub() && renderStatsHub()), "MatchEnded" !== t && "MatchDestroyed" !== t || (liveGame = null,
+  })), "UpdateState" === t && (liveGame = o, updateCameraPlayerLists(o), shouldPaintStatsHub() && renderStatsHub()), "MatchEnded" !== t && "MatchDestroyed" !== t || (liveGame = null, updateCameraPlayerLists(null),
   isStatsTabActive() && renderStatsHub(), loadMatchHistory(!0), refreshActiveRecordingMatch());
-}), panelSocket.on("goal-clip-queued", e => {
+}), panelSocket.on("stats-wall-shown", scheduleReelAutoplay), panelSocket.on("goal-clip-queued", e => {
   enqueueGoalClip(e || {});
 }), panelSocket.on("highlight-reel-build-failed", e => {
   showPanelToast(`Series highlight reel failed to build: ${e?.error || "Unknown error"}`, !0);
